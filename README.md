@@ -35,7 +35,9 @@ capture is instant.
 Every capture opens as a **tab** in one editor window, so you can take a few and frame them one after another.
 Each tab keeps its own frame and edits. <kbd>Ctrl</kbd> + <kbd>Tab</kbd> switches tabs, and <kbd>Ctrl</kbd> + <kbd>W</kbd> or the tab's × closes one.
 
-- **Frame:** Backdrop (the room around it), Corners, Inset (a margin in the screenshot's own edge colour) and Inner corners.
+- **Frame:** Backdrop (the room around it), Corners, Inset and Inner corners. The inset can be **Glass** (see-through and
+  frosted over the backdrop, with a bright rim) or **Edge** (the screenshot's own edge colour). **Auto** picks Edge when the
+  screenshot's edge is one plain colour, and Glass when it's colourful.
 - **Shadow:** Strength and Size, from a short close shadow to a big soft one.
 - **Backdrop:** a solid colour (or see-through), a gradient drawn as Mesh, Linear or Radial (with Swap and Shuffle), or a picture: a blurred copy of the screenshot itself, or one of your own.
   The first gradient, with the little sparkle, is **From the screenshot**: colours picked from your capture so the backdrop always suits it.
@@ -59,8 +61,8 @@ One **Undo** (<kbd>Ctrl</kbd> + <kbd>Z</kbd>) steps back through all of them.
   <img src="docs/screenshots/framed-auto-linear.png" width="49%" alt="A backdrop with colours picked from the screenshot">
 </p>
 <p align="center">
+  <img src="docs/screenshots/framed-glass-dusk.png" width="49%" alt="A glass inset over a dusk gradient">
   <img src="docs/screenshots/framed-sunset-wide.png" width="49%" alt="Framed on a sunset gradient at 16:9">
-  <img src="docs/screenshots/framed-inset-white.png" width="49%" alt="Framed with an inset on a light grey backdrop">
 </p>
 
 ### Pictures you already have
@@ -98,7 +100,9 @@ pinned Scr icon works as a capture button.
 - **Shortcut:** <kbd>Print Screen</kbd> to start with. Click it and press the keys you'd like instead.
 - **Win + Shift + S opens Scr:** takes the Snipping Tool shortcut over from Windows (on to start with).
 - **Copy the screenshot straight away**, **Close the editor after Copy** and **Leave full-screen games alone.**
-- **Appearance:** the same eight themes as Kalendar (Blossom, Peach, Honey, Meadow, Glacier, Lavender, Dusk, Slate), and Same as Windows, Light or Dark.
+- **Appearance:** the same eight themes as Kalendar (Blossom, Peach, Honey, Meadow, Glacier, Lavender, Dusk, Slate),
+  Same as Windows, Light or Dark, and a five-step **Transparency** slider from Clear to Solid.
+- **Check for updates:** see [Updates](#updates).
 - Where **Save…** starts (Pictures\Screenshots to start with), and **Start with Windows**.
 
 ### Print Screen and Snipping Tool
@@ -125,11 +129,20 @@ The first time, Scr opens Settings with a short welcome. After that it waits in 
 Turn on Start with Windows to have it there every day.
 
 - `Scr.exe --tray` starts it quietly in the tray (this is what Start with Windows uses).
-- `Scr.exe --quit` closes a running Scr, for example before you update it.
+- `Scr.exe --quit` closes a running Scr.
+
+### Updates
+
+Scr updates itself. About once a day it asks GitHub whether there's a newer release, and if there is, a small notice
+says so. Click it (or **Update** in the tray menu or Settings): Scr downloads the zip from this project's releases,
+checks it against GitHub's checksum, swaps in the new files and starts again, with your settings just as they were.
+Turn **Check for updates** off in Settings if you'd rather update by hand. Versions before 0.3.0 need to be updated by
+hand once.
 
 ### Private
 
-Scr doesn't go online at all. Your screenshots stay on your PC and on your clipboard. Its settings are in
+Your screenshots stay on your PC and on your clipboard; Scr never sends them anywhere. The only thing it ever contacts
+is GitHub, to check for a new version and download it, and that request contains nothing about you. Its settings are in
 `%APPDATA%\Scr\settings.json`, and Start with Windows is a value named "Scr" under
 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 

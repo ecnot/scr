@@ -13,8 +13,41 @@ namespace Scr;
 /// </summary>
 static class DevPreview
 {
+    /// <summary>Shows an editor far off-screen for a moment and writes down what Windows says about its frame.</summary>
+    public static void Diagnose(string outFile, BitmapSource sample)
+    {
+        var ed = new EditorWindow(sample, 1) { ShowInTaskbar = false, ShowActivated = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = -30000, Top = -30000 };
+        ed.Show();
+        var h = new System.Windows.Interop.WindowInteropHelper(ed).Handle;
+        var rgn = DiagNative.CreateRectRgn(0, 0, 0, 0);
+        int rgnType = DiagNative.GetWindowRgn(h, rgn);
+        long style = DiagNative.GetWindowLongPtr(h, -16).ToInt64();
+        long ex = DiagNative.GetWindowLongPtr(h, -20).ToInt64();
+        DiagNative.DwmGetWindowAttribute(h, 1, out int ncEnabled, 4);
+        var lines = new[]
+        {
+            $"window region type: {rgnType} (0 = none, 1 = empty, 2/3 = a region is set, which removes the shadow)",
+            $"style: 0x{style:X} thickframe={(style & 0x40000) != 0} caption={(style & 0xC00000) == 0xC00000} sysmenu={(style & 0x80000) != 0}",
+            $"exstyle: 0x{ex:X} layered={(ex & 0x80000) != 0}",
+            $"DWM non-client rendering enabled: {ncEnabled}",
+        };
+        File.WriteAllLines(outFile, lines);
+        DiagNative.DeleteObject(rgn);
+        ed.Close();
+    }
+
+    static class DiagNative
+    {
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")] public static extern IntPtr CreateRectRgn(int a, int b, int c, int d);
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr o);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern int GetWindowRgn(IntPtr h, IntPtr rgn);
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern IntPtr GetWindowLongPtr(IntPtr h, int i);
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out int v, int s);
+    }
+
     public static void Run(string[] args)
     {
+        if (args.Length >= 3 && args[0] == "--diag") { Diagnose(args[1], Load(args[2])); return; }
         string outDir = args.Length > 0 ? args[0] : ".";
         Directory.CreateDirectory(outDir);
         var sample = Load(args.Length > 1 ? args[1] : null);
@@ -24,10 +57,12 @@ static class DevPreview
         var part1 = ScreenCapture.Copy(sample, new Int32Rect(0, 0, sample.PixelWidth / 3, sample.PixelHeight * 2 / 3));
         var part2 = ScreenCapture.Copy(sample, new Int32Rect(sample.PixelWidth / 4, sample.PixelHeight / 4, sample.PixelWidth / 2, sample.PixelHeight / 3));
 
-        foreach (var (theme, dark, file) in new[] { ("Lavender", false, "light"), ("Lavender", true, "dark"), ("Meadow", false, "meadow"), ("Dusk", true, "dusk-dark") })
+        // An inset in the editor, so the Inset choice (Auto / Glass / Edge colour) shows.
+        App.Instance.Settings.Style = new FrameStyle { Inset = 26, InnerRadius = 10, OuterRadius = 22 };
+        foreach (var (theme, dark, file, level) in new[] { ("Lavender", false, "light", 3), ("Lavender", true, "dark", 3), ("Meadow", false, "meadow", 3), ("Dusk", true, "dusk-dark", 3), ("Lavender", false, "clear", 1) })
         {
             App.Instance.Settings.Theme = theme;
-            ThemeColors.Apply(Application.Current.Resources, theme, dark, glass: true);
+            ThemeColors.Apply(Application.Current.Resources, theme, dark, glass: true, level);
             var ed = new EditorWindow(part1, dpi) { Width = 1180, Height = 760 };
             if (args.Length > 1) ed.AddCapture(Import.LoadFile(args[1]), System.IO.Path.GetFileNameWithoutExtension(args[1]));
             ed.AddCapture(part2);
@@ -58,6 +93,15 @@ static class DevPreview
         Example("sunset-wide", s => { s.GradientIndex = 10; s.Ratio = AspectRatio.Wide; s.OuterRadius = 20; });
         Example("inset-white", s => { s.Kind = BackdropKind.Solid; s.SolidColor = "#F3F4F6"; s.Inset = 30; s.InnerRadius = 10; s.OuterRadius = 22; });
         Example("blurred", s => { s.Kind = BackdropKind.Picture; s.Padding = 90; });
+        // Glass inset on a colourful part of the calendar (its edge isn't one colour, so Auto picks glass).
+        var mixed = new FrameSource(part2);
+        foreach (var (name, index) in new[] { ("glass-dusk", 13), ("glass-ocean", 15), ("glass-auto", -1) })
+        {
+            var gs = new FrameStyle { GradientIndex = index, Inset = 40, InnerRadius = 12, OuterRadius = 30, Padding = 90 };
+            FrameRenderer.SavePng(FrameRenderer.RenderBitmap(mixed, gs), Path.Combine(outDir, $"framed-{name}.png"));
+        }
+        var edgeStyle = new FrameStyle { GradientIndex = 13, Inset = 40, InnerRadius = 12, OuterRadius = 30, Padding = 90, InsetLook = InsetLook.Edge };
+        FrameRenderer.SavePng(FrameRenderer.RenderBitmap(mixed, edgeStyle), Path.Combine(outDir, "framed-edge-dusk.png"));
         {
             var sp = new FrameSource(sample);
             sp.AddMark(new Mark(MarkKind.Spotlight, new Int32Rect(350, 100, 1240, 380), Colors.Red));
@@ -113,6 +157,11 @@ static class DevPreview
     {
         root.Measure(new Size(w, h));
         root.Arrange(new Rect(0, 0, w, h));
+        root.UpdateLayout();
+        // Windows that are never shown don't get "loaded", so put the switches and highlights in place by hand.
+        Anim.SettleAll(root);
+        root.UpdateLayout();
+        Anim.SettleAll(root);
         root.UpdateLayout();
         double k = 1.5;
         var rtb = new RenderTargetBitmap((int)(w * k), (int)(h * k), 96 * k, 96 * k, PixelFormats.Pbgra32);

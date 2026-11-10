@@ -10,6 +10,7 @@ public enum BackdropKind { Solid, Gradient, Picture }
 public enum GradientShape { Linear, Mesh, Radial }
 public enum AspectRatio { Auto, Wide, Classic, Square }
 public enum ColorMode { System, Light, Dark }
+public enum InsetLook { Auto, Glass, Edge }
 
 /// <summary>How a capture is framed. Sizes are in "units" that grow with the capture, so a style looks the same on small and big shots.</summary>
 public sealed class FrameStyle
@@ -18,6 +19,7 @@ public sealed class FrameStyle
     public double Shadow { get; set; } = 55;      // strength
     public double ShadowSize { get; set; } = 40;
     public double Inset { get; set; } = 0;
+    public InsetLook InsetLook { get; set; } = InsetLook.Auto;
     public double OuterRadius { get; set; } = 14;
     public double InnerRadius { get; set; } = 8;
     public BackdropKind Kind { get; set; } = BackdropKind.Gradient;
@@ -46,8 +48,11 @@ public sealed class AppSettings
     public int HotkeyVk { get; set; } = 0x2C; // Print Screen
     public bool TakeOverWinShiftS { get; set; } = true;
     public bool QuietFullScreen { get; set; } = true;
+    public bool CheckForUpdates { get; set; } = true;
+    public DateTime? LastUpdateCheck { get; set; }
     public string Theme { get; set; } = "Lavender";
     public ColorMode ColorMode { get; set; } = ColorMode.System;
+    public int GlassLevel { get; set; } = 3; // transparency, 1 (clearest) to 5 (solid); 3 is the original look
     public bool CopyOnCapture { get; set; } = true;
     public bool CloseAfterCopy { get; set; } = true;
     public string? SaveFolder { get; set; }

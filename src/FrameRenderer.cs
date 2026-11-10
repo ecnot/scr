@@ -37,10 +37,14 @@ public sealed class FrameSource
         return shadowMask;
     }
 
+    /// <summary>True when the capture's edge is one plain colour, so the edge-colour inset blends in.</summary>
+    public bool EdgeIsPlain { get; }
+
     public FrameSource(BitmapSource capture)
     {
         Capture = capture;
-        EdgeColor = Pixels.EdgeColor(capture);
+        EdgeColor = Pixels.EdgeColor(capture, out double spread);
+        EdgeIsPlain = spread < 14;
     }
 
     // ---------- Edits: redactions, highlights, spotlights and crop, with one undo for all ----------
@@ -164,8 +168,13 @@ public static class FrameRenderer
 
             if (hasBackdrop) DrawBackdrop(dc, src, s, canvas);
 
+            bool glass = inset > 0 && (s.InsetLook == InsetLook.Glass || (s.InsetLook == InsetLook.Auto && !src.EdgeIsPlain));
+            var cardGeometry = new RectangleGeometry(cardRect, outerR, outerR);
+
             if (hasBackdrop && s.Shadow > 0)
             {
+                // Glass is see-through, so the shadow mustn't show through it.
+                if (glass) dc.PushClip(new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(canvas), cardGeometry));
                 double t = s.Shadow / 100.0;
                 var mask = src.Shadow(w, h, cardRect, outerR, t, s.ShadowSize / 100.0, u, out double scale);
                 dc.DrawImage(mask, new Rect(0, 0, mask.PixelWidth / scale, mask.PixelHeight / scale));
@@ -173,6 +182,7 @@ public static class FrameRenderer
                 var edge = new SolidColorBrush(Color.FromArgb((byte)(10 + 14 * t), 0, 0, 0));
                 var ring = cardRect; ring.Inflate(0.5 * u, 0.5 * u);
                 dc.DrawRoundedRectangle(null, new Pen(edge, 1 * u), ring, outerR + 0.5 * u, outerR + 0.5 * u);
+                if (glass) dc.Pop();
             }
 
             dc.PushClip(new RectangleGeometry(cardRect, outerR, outerR));
@@ -182,11 +192,18 @@ public static class FrameRenderer
             src.LastOffset = offset;
             if (inset > 0)
             {
-                dc.DrawRectangle(new SolidColorBrush(src.EdgeColor), null, cardRect);
+                if (glass) DrawGlass(dc, cardRect, outerR, u, hasBackdrop);
+                else dc.DrawRectangle(new SolidColorBrush(src.EdgeColor), null, cardRect);
                 dc.PushClip(new RectangleGeometry(imgRect, innerR, innerR));
                 dc.DrawImage(cap, imgRect);
                 DrawMarks(dc, src, imgRect, offset, u);
                 dc.Pop();
+                if (glass)
+                {
+                    // A faint line seats the screenshot in the glass.
+                    var seat = imgRect; seat.Inflate(0.5 * u, 0.5 * u);
+                    dc.DrawRoundedRectangle(null, new Pen(new SolidColorBrush(Color.FromArgb(0x24, 0, 0, 0)), 1 * u), seat, innerR + 0.5 * u, innerR + 0.5 * u);
+                }
             }
             else
             {
@@ -199,6 +216,37 @@ public static class FrameRenderer
         RenderOptions.SetBitmapScalingMode(g, BitmapScalingMode.HighQuality);
         g.Freeze();
         return (g, w, h);
+    }
+
+    /// <summary>
+    /// The glass inset: see-through and lightly frosted over the backdrop, brighter at the top like light falling on it,
+    /// with a bright rim that fades from the top-left corner.
+    /// </summary>
+    static void DrawGlass(DrawingContext dc, Rect card, double radius, double u, bool hasBackdrop)
+    {
+        static Color W(byte a) => Color.FromArgb(a, 255, 255, 255);
+        dc.DrawRectangle(new SolidColorBrush(W(hasBackdrop ? (byte)0x3C : (byte)0xA8)), null, card);
+
+        var sheen = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        sheen.GradientStops.Add(new GradientStop(W(0x66), 0));
+        sheen.GradientStops.Add(new GradientStop(W(0x16), 0.42));
+        sheen.GradientStops.Add(new GradientStop(W(0x06), 0.8));
+        sheen.GradientStops.Add(new GradientStop(W(0x1C), 1));
+        sheen.Freeze();
+        dc.DrawRectangle(sheen, null, card);
+
+        var rim = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+        rim.GradientStops.Add(new GradientStop(W(0xF0), 0));
+        rim.GradientStops.Add(new GradientStop(W(0x50), 0.45));
+        rim.GradientStops.Add(new GradientStop(W(0x30), 0.7));
+        rim.GradientStops.Add(new GradientStop(W(0xA0), 1));
+        rim.Freeze();
+        double t = Math.Max(1, 1.4 * u);
+        var r = card; r.Inflate(-t / 2, -t / 2);
+        dc.DrawRoundedRectangle(null, new Pen(rim, t), r, Math.Max(0, radius - t / 2), Math.Max(0, radius - t / 2));
+        // A second, fainter rim just inside gives the edge some depth.
+        var r2 = card; r2.Inflate(-2.6 * u, -2.6 * u);
+        dc.DrawRoundedRectangle(null, new Pen(new SolidColorBrush(W(0x26)), Math.Max(0.75, 0.8 * u)), r2, Math.Max(0, radius - 2.6 * u), Math.Max(0, radius - 2.6 * u));
     }
 
     /// <summary>Spotlights (everything else dimmed), then highlight boxes and marker strokes, on top of the capture.</summary>

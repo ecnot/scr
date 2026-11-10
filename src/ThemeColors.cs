@@ -81,13 +81,20 @@ public static class ThemeColors
         return FromHsl(h, 0.18, lightness);
     }
 
-    public static void Apply(ResourceDictionary r, string? themeName, bool dark, bool glass)
+    // Transparency, five steps like Kalendar's (3 is the original look): how much of the window and the main surface is see-through.
+    static readonly byte[] LightTint = { 0x40, 0x70, 0x9E, 0xCC, 0xFF };
+    static readonly byte[] LightSheet = { 0x60, 0x80, 0x9E, 0xCC, 0xFF };
+    static readonly byte[] DarkTint = { 0x99, 0xBB, 0xDB, 0xF0, 0xFF };
+
+    public static void Apply(ResourceDictionary r, string? themeName, bool dark, bool glass, int level = 3)
     {
         IsDark = dark;
         var theme = Find(themeName);
+        int i = Math.Clamp(level, 1, 5) - 1;
+        if (!glass) i = 4; // without acrylic (Windows 10) everything is solid
         if (!dark)
         {
-            r["B.WindowTint"] = Gradient(theme.Stops, glass ? (byte)0x9E : (byte)0xFF);
+            r["B.WindowTint"] = Gradient(theme.Stops, LightTint[i]);
             r["B.Ink"] = B(0xFF1D1D1F);
             r["B.InkInverse"] = B(0xFFFFFFFF);
             r["B.Muted"] = B(0xFF6B6A66);
@@ -96,7 +103,7 @@ public static class ThemeColors
             r["B.AccentSoft"] = Solid(WithAlpha(theme.Accent, 0x24));
             r["B.Hairline"] = B(0x121E1E3C);
             r["B.HairlineStrong"] = B(0x2A1E1E3C);
-            r["B.Sheet"] = B(0x9EFFFFFF);
+            r["B.Sheet"] = Solid(Color.FromArgb(LightSheet[i], 0xFF, 0xFF, 0xFF));
             r["B.SheetEdge"] = B(0xC0FFFFFF);
             r["B.Control"] = B(0xB8FFFFFF);
             r["B.ControlHover"] = B(0xF0FFFFFF);
@@ -115,7 +122,7 @@ public static class ThemeColors
             var veil = DarkBase(theme.Accent, 0.10);
             var stops = theme.Stops.Select(s => Mix(s, veil, 0.88)).ToArray();
             var accent = DarkAccent(theme.Accent);
-            r["B.WindowTint"] = Gradient(stops, glass ? (byte)0xDB : (byte)0xFF);
+            r["B.WindowTint"] = Gradient(stops, DarkTint[i]);
             r["B.Ink"] = B(0xFFECECEA);
             r["B.InkInverse"] = B(0xFF15151E);
             r["B.Muted"] = B(0xFF9A9993);

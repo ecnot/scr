@@ -34,6 +34,15 @@ public partial class SettingsWindow : GlassWindow
         CopyNow.IsChecked = S.CopyOnCapture;
         CloseAfter.IsChecked = S.CloseAfterCopy;
         QuietFullScreen.IsChecked = S.QuietFullScreen;
+        CheckUpdates.IsChecked = S.CheckForUpdates;
+        GlassSlider.Value = Math.Clamp(S.GlassLevel, 1, 5);
+        if (!HasAcrylic)
+        {
+            GlassRow.IsEnabled = false;
+            GlassRow.Opacity = 0.5;
+            GlassNote.Text = "The same themes as Kalendar. Transparency needs Windows 11.";
+        }
+        ShowUpdateState();
         (S.ColorMode switch { ColorMode.Light => ModeLight, ColorMode.Dark => ModeDark, _ => ModeSystem }).IsChecked = true;
         FolderText.Text = S.SaveFolderOrDefault;
         try { StartWithWindows.IsChecked = AppSettings.StartWithWindows; } catch { }
@@ -48,6 +57,16 @@ public partial class SettingsWindow : GlassWindow
         CloseAfter.Checked += (_, _) => Set(() => S.CloseAfterCopy = true);
         CloseAfter.Unchecked += (_, _) => Set(() => S.CloseAfterCopy = false);
         QuietFullScreen.Checked += (_, _) => Set(() => S.QuietFullScreen = true);
+        GlassSlider.ValueChanged += (_, _) => Set(() => { S.GlassLevel = (int)Math.Round(GlassSlider.Value); App.Instance.RefreshTheme(); });
+        CheckUpdates.Checked += (_, _) => Set(() => S.CheckForUpdates = true);
+        CheckUpdates.Unchecked += (_, _) => Set(() => S.CheckForUpdates = false);
+        UpdateBtn.Click += (_, _) =>
+        {
+            if (App.Instance.AvailableUpdate != null) App.Instance.InstallUpdate();
+            else _ = App.Instance.CheckForUpdates(userAsked: true);
+        };
+        App.Instance.UpdateStateChanged += ShowUpdateState;
+        Closed += (_, _) => App.Instance.UpdateStateChanged -= ShowUpdateState;
         QuietFullScreen.Unchecked += (_, _) => Set(() => S.QuietFullScreen = false);
         ModeSystem.Checked += (_, _) => SetMode(ColorMode.System);
         ModeLight.Checked += (_, _) => SetMode(ColorMode.Light);
@@ -82,6 +101,16 @@ public partial class SettingsWindow : GlassWindow
             rb.Checked += (_, _) => Set(() => { S.Theme = theme.Name; App.Instance.RefreshTheme(); });
             ThemeGrid.Children.Add(rb);
         }
+    }
+
+    void ShowUpdateState()
+    {
+        var app = App.Instance;
+        var u = app.AvailableUpdate;
+        UpdateText.Text = app.UpdateStatus is { Length: > 0 } st ? st : $"You have Scr {Updater.CurrentText}.";
+        UpdateBtn.Content = u != null ? $"Update to {u.Version.ToString(3)}" : "Check now";
+        UpdateBtn.Style = (Style)FindResource(u != null ? "PrimaryBtn" : "Btn");
+        UpdateBtn.IsEnabled = !app.UpdateBusy;
     }
 
     void SetMode(ColorMode mode) => Set(() => { S.ColorMode = mode; App.Instance.RefreshTheme(); });

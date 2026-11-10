@@ -240,6 +240,9 @@ public partial class EditorWindow : GlassWindow
         RatioSquare.Checked += (_, _) => SetRatio(AspectRatio.Square);
 
         NewCaptureBtn.Click += (_, _) => App.Instance.StartCapture();
+        InsetAuto.Checked += (_, _) => SetInsetLook(InsetLook.Auto);
+        InsetGlass.Checked += (_, _) => SetInsetLook(InsetLook.Glass);
+        InsetEdge.Checked += (_, _) => SetInsetLook(InsetLook.Edge);
         ToolRedact.Click += (_, _) => PickTool(Tool.Redact);
         ToolCrop.Click += (_, _) => PickTool(Tool.Crop);
         ToolHighlight.Click += (_, _) => PickTool(Tool.Highlight);
@@ -277,6 +280,7 @@ public partial class EditorWindow : GlassWindow
 
         (style.RedactKind == RedactKind.Blur ? RedactBlur : RedactPixelate).IsChecked = true;
         (style.HighlightKind == MarkKind.Marker ? HighlightMarker : HighlightBox).IsChecked = true;
+        (style.InsetLook switch { InsetLook.Glass => InsetGlass, InsetLook.Edge => InsetEdge, _ => InsetAuto }).IsChecked = true;
         foreach (RadioButton dot in ColorDots.Children)
             dot.IsChecked = string.Equals((string)dot.Tag, style.MarkColor, StringComparison.OrdinalIgnoreCase);
         int gi = style.GradientIndex < 0 ? 0 : Math.Min(style.GradientIndex + 1, GradientGrid.Children.Count - 1);
@@ -302,6 +306,7 @@ public partial class EditorWindow : GlassWindow
         bool inset = style.Inset > 0;
         InnerSlider.IsEnabled = inset;
         InnerBox.Opacity = inset ? 1 : 0.55;
+        InsetLookPanel.Visibility = inset ? Visibility.Visible : Visibility.Collapsed;
         bool shadow = style.Shadow > 0;
         ShadowSizeSlider.IsEnabled = shadow;
     }
@@ -337,6 +342,8 @@ public partial class EditorWindow : GlassWindow
         UpdatePanels();
         RequestRender();
     }
+
+    void SetInsetLook(InsetLook look) { if (loading) return; style.InsetLook = look; RequestRender(); }
 
     void SetShape(GradientShape s) { if (loading) return; style.Shape = s; RequestRender(); }
     void SetRatio(AspectRatio r) { if (loading) return; style.Ratio = r; RequestRender(); }

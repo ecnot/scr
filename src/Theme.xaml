@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:Scr">
 
   <!-- Brushes named B.* are set from code (ThemeColors) so light and dark can switch. -->
 
@@ -159,6 +160,7 @@
 
   <!-- Segmented switch: a recessed track, the chosen option raised -->
   <Style x:Key="SegTrack" TargetType="Border">
+    <Setter Property="local:Anim.Segments" Value="True"/>
     <Setter Property="Background" Value="{DynamicResource B.SegTrack}"/>
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Padding" Value="2"/>
@@ -179,13 +181,8 @@
             <Trigger Property="IsMouseOver" Value="True">
               <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
             </Trigger>
+            <!-- The raised highlight behind the chosen option slides between them (Anim.Segments on the track) -->
             <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.SegOn}"/>
-              <Setter TargetName="bd" Property="Effect">
-                <Setter.Value>
-                  <DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.14"/>
-                </Setter.Value>
-              </Setter>
               <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
             </Trigger>
             <Trigger Property="IsKeyboardFocused" Value="True">
@@ -231,6 +228,7 @@
   <Style x:Key="Switch" TargetType="CheckBox">
     <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="local:Anim.Switch" Value="True"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="CheckBox">
@@ -239,17 +237,18 @@
               <ColumnDefinition Width="Auto"/>
               <ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            <Border x:Name="track" Width="36" Height="20" CornerRadius="10" Background="{DynamicResource B.SwitchOff}"
-                    VerticalAlignment="Top" Margin="0,1,0,0">
-              <Ellipse x:Name="knob" Width="14" Height="14" Fill="White" HorizontalAlignment="Left" Margin="3,0,0,0"/>
-            </Border>
+            <Grid Width="36" Height="20" VerticalAlignment="Top" Margin="0,1,0,0">
+              <Border x:Name="track" CornerRadius="10" Background="{DynamicResource B.SwitchOff}"/>
+              <Border x:Name="on" CornerRadius="10" Background="{DynamicResource B.Accent}" Opacity="0"/>
+              <Ellipse x:Name="knob" Width="14" Height="14" Fill="White" HorizontalAlignment="Left" Margin="3,0,0,0">
+                <Ellipse.RenderTransform>
+                  <TranslateTransform/>
+                </Ellipse.RenderTransform>
+              </Ellipse>
+            </Grid>
             <ContentPresenter Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top"/>
           </Grid>
           <ControlTemplate.Triggers>
-            <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="track" Property="Background" Value="{DynamicResource B.Accent}"/>
-              <Setter TargetName="knob" Property="Margin" Value="19,0,0,0"/>
-            </Trigger>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="track" Property="BorderBrush" Value="{DynamicResource B.Accent}"/>
               <Setter TargetName="track" Property="BorderThickness" Value="1"/>
@@ -474,6 +473,54 @@
       </Setter.Value>
     </Setter>
   </Style>
+  <!-- Caption buttons, drawn by Scr like Kalendar's: 46 x 44 -->
+  <Style x:Key="CaptionBtn" TargetType="Button">
+    <Setter Property="Width" Value="46"/>
+    <Setter Property="Height" Value="44"/>
+    <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd" Background="Transparent">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.GhostHover}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.HairlineStrong}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="CaptionClose" TargetType="Button" BasedOn="{StaticResource CaptionBtn}">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd" Background="Transparent">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#C42B1C"/>
+              <Setter Property="Foreground" Value="White"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#C8C42B1C"/>
+              <Setter Property="Foreground" Value="White"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- Editor tool (Redact, Crop, ...): off until clicked -->
   <Style x:Key="ToolBtn" TargetType="ToggleButton">
     <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
@@ -534,28 +581,26 @@
   </Style>
   <Style x:Key="Tab" TargetType="RadioButton">
     <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
-    <Setter Property="Height" Value="28"/>
-    <Setter Property="Margin" Value="0,0,4,0"/>
+    <Setter Property="Height" Value="35"/>
+    <Setter Property="VerticalAlignment" Value="Bottom"/>
+    <Setter Property="Margin" Value="0,0,2,-1"/>
     <Setter Property="FontSize" Value="12.5"/>
     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
           <Grid Background="Transparent">
-            <Border x:Name="bd" CornerRadius="6" Background="Transparent"/>
-            <ContentPresenter Margin="5,0,4,0" VerticalAlignment="Center"/>
+            <Border x:Name="bd" CornerRadius="8,8,0,0" Background="Transparent" BorderThickness="1,1,1,0" BorderBrush="Transparent"/>
+            <ContentPresenter Margin="10,0,6,1" VerticalAlignment="Center"/>
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.GhostHover}"/>
             </Trigger>
+            <!-- The chosen tab is part of the editor's surface: same colour, same bright edge, no line between them -->
             <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.SegOn}"/>
-              <Setter TargetName="bd" Property="Effect">
-                <Setter.Value>
-                  <DropShadowEffect BlurRadius="5" ShadowDepth="1" Direction="270" Opacity="0.14"/>
-                </Setter.Value>
-              </Setter>
+              <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.Sheet}"/>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.SheetEdge}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

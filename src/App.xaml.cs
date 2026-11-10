@@ -16,9 +16,12 @@ public partial class App : Application
     public AppSettings Settings { get; private set; } = new();
     public TrayIcon? Tray { get; private set; }
 
-    const string MutexName = @"Local\Scr-ecnot-instance";
-    const string SignalName = @"Local\Scr-ecnot-capture";
-    const string QuitName = @"Local\Scr-ecnot-quit";
+    // A test copy (SCR_DATA set) gets its own names, so it never talks to the Scr you're using.
+    static readonly string Suffix = Environment.GetEnvironmentVariable("SCR_DATA") is { Length: > 0 } d
+        ? "-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(d.ToLowerInvariant())))[..12] : "";
+    static readonly string MutexName = @"Local\Scr-ecnot-instance" + Suffix;
+    static readonly string SignalName = @"Local\Scr-ecnot-capture" + Suffix;
+    static readonly string QuitName = @"Local\Scr-ecnot-quit" + Suffix;
     Mutex? mutex;
     EventWaitHandle? signal, quitSignal;
     RegisteredWaitHandle? waiter, quitWaiter;
@@ -68,7 +71,16 @@ public partial class App : Application
             return;
         }
 #endif
+        // The new version finishing an update from its temporary folder.
+        if (e.Args.Length >= 3 && e.Args[0] == "--finish-update" && int.TryParse(e.Args[2], out int oldPid))
+        {
+            Updater.FinishUpdate(e.Args[1], oldPid);
+            Shutdown();
+            return;
+        }
         bool trayOnly = e.Args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
+        bool justUpdated = e.Args.Any(a => a.Equals("--updated", StringComparison.OrdinalIgnoreCase));
+        bool updateNow = e.Args.Any(a => a.Equals("--update-now", StringComparison.OrdinalIgnoreCase));
         bool quit = e.Args.Any(a => a.Equals("--quit", StringComparison.OrdinalIgnoreCase));
 
         // One Scr at a time. Starting it again (Start menu, pinned icon) just takes a capture;
@@ -104,6 +116,8 @@ public partial class App : Application
         Tray.Capture += StartCapture;
         Tray.FullScreen += () => { RefreshTheme(); CaptureSession.FullScreenNow(); };
         Tray.OpenEditor += ShowEditor;
+        Tray.BalloonClicked += () => { if (balloonIsUpdate) InstallUpdate(); else ShowEditor(); };
+        Tray.Update += InstallUpdate;
         Tray.OpenPicture += () => OpenPictures(AskForPictures(null), "Scr can't open that picture.");
         Tray.PastePicture += () => OpenPictures(Import.FromClipboard(), "There's no picture on the clipboard.");
         Tray.Settings += () => ShowSettings(false);
@@ -111,7 +125,7 @@ public partial class App : Application
         Tray.Quit += () => Shutdown();
 
         keyHook = new KeyboardHook(Dispatcher, StartCapture);
-        ApplyShortcuts();
+        if (!TestMode) ApplyShortcuts();
 
         if (!Settings.Welcomed)
         {
@@ -123,7 +137,104 @@ public partial class App : Application
         {
             StartCapture();
         }
+        if (justUpdated) ShowBalloon("Scr is updated", $"You now have Scr {Updater.CurrentText}. Your settings are just as they were.");
+        if (updateNow) _ = CheckForUpdates(userAsked: true, installIfFound: true);
+        else StartUpdateChecks();
         ScheduleTrim(4000);
+    }
+
+    // ---------- Updates ----------
+
+    public UpdateInfo? AvailableUpdate { get; private set; }
+    public string UpdateStatus { get; private set; } = "";
+    public bool UpdateBusy { get; private set; }
+    public event Action? UpdateStateChanged;
+    DispatcherTimer? updateTimer;
+    bool balloonIsUpdate;
+
+    /// <summary>A test copy (SCR_TEST=1) leaves your shortcuts alone and shows no notices.</summary>
+    static bool TestMode => Environment.GetEnvironmentVariable("SCR_TEST") == "1";
+
+    public void ShowBalloon(string title, string text, bool isUpdate = false)
+    {
+        balloonIsUpdate = isUpdate;
+        if (TestMode) return;
+        Tray?.ShowBalloon(title, text);
+    }
+
+    void SetUpdateState(string status)
+    {
+        UpdateStatus = status;
+        Tray?.SetUpdateItem(AvailableUpdate == null ? null : $"Update to Scr {AvailableUpdate.Version.ToString(3)}");
+        UpdateStateChanged?.Invoke();
+    }
+
+    /// <summary>A minute after starting, then every hour: check if it's been a day since the last check.</summary>
+    void StartUpdateChecks()
+    {
+        updateTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        updateTimer.Tick += (_, _) =>
+        {
+            updateTimer.Interval = TimeSpan.FromHours(1);
+            if (!Settings.CheckForUpdates) return;
+            if (Settings.LastUpdateCheck is DateTime last && DateTime.Now - last < TimeSpan.FromHours(20)) return;
+            _ = CheckForUpdates(userAsked: false);
+        };
+        updateTimer.Start();
+    }
+
+    public async System.Threading.Tasks.Task CheckForUpdates(bool userAsked, bool installIfFound = false)
+    {
+        if (UpdateBusy) return;
+        UpdateBusy = true;
+        SetUpdateState("Checking…");
+        try
+        {
+            var found = await Updater.CheckAsync();
+            Settings.LastUpdateCheck = DateTime.Now;
+            Settings.Save();
+            AvailableUpdate = found;
+            UpdateBusy = false;
+            if (found == null)
+            {
+                SetUpdateState($"You have the latest version ({Updater.CurrentText}).");
+                return;
+            }
+            SetUpdateState($"Scr {found.Version.ToString(3)} is ready.");
+            if (installIfFound) InstallUpdate();
+            else if (!userAsked) ShowBalloon($"Scr {found.Version.ToString(3)} is ready", "Click here to update. It only takes a moment, and your settings stay.", isUpdate: true);
+        }
+        catch (Exception ex)
+        {
+            UpdateBusy = false;
+            SetUpdateState(userAsked ? "Couldn't reach GitHub. Check your connection and try again." : "");
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
+    }
+
+    /// <summary>Downloads the update, starts the new version to swap the files, and quits.</summary>
+    public async void InstallUpdate()
+    {
+        if (AvailableUpdate is not UpdateInfo u || UpdateBusy) return;
+        if (editor != null && editor.TabCount > 0 && Environment.GetEnvironmentVariable("SCR_DATA") is not { Length: > 0 })
+        {
+            var answer = MessageBox.Show($"Scr will close the editor and restart as {u.Version.ToString(3)}. Your open captures will be closed.\n\nUpdate now?",
+                "Update Scr", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+            if (answer != MessageBoxResult.OK) return;
+        }
+        UpdateBusy = true;
+        SetUpdateState($"Downloading Scr {u.Version.ToString(3)}…");
+        try
+        {
+            await Updater.DownloadAndStartAsync(u);
+            Shutdown();
+        }
+        catch (Exception ex)
+        {
+            UpdateBusy = false;
+            SetUpdateState("The update didn't work: " + ex.Message);
+            ShowBalloon("Scr couldn't update", ex.Message + " You can download it from GitHub instead.");
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -148,7 +259,7 @@ public partial class App : Application
             _ => ThemeColors.SystemIsDark(),
         };
         bool changed = dark != ThemeColors.IsDark;
-        ThemeColors.Apply(Resources, Settings.Theme, dark, GlassWindow.HasAcrylic);
+        ThemeColors.Apply(Resources, Settings.Theme, dark, GlassWindow.HasAcrylic, Settings.GlassLevel);
         if (changed)
             foreach (Window w in Windows)
                 if (w is GlassWindow g) g.ApplyBackdrop();
@@ -165,7 +276,7 @@ public partial class App : Application
         if (Settings.QuietFullScreen && ScreenCapture.FullScreenAppMonitor() is ScreenCapture.Monitor m)
         {
             try { OpenEditor(ScreenCapture.Capture(m.Bounds), m.Scale, quiet: true); }
-            catch (Exception ex) { Tray?.ShowBalloon("Scr couldn't capture the screen", ex.Message); }
+            catch (Exception ex) { ShowBalloon("Scr couldn't capture the screen", ex.Message); }
             return;
         }
         CaptureSession.Start();
@@ -182,7 +293,7 @@ public partial class App : Application
             bool copied = Settings.CopyOnCapture && TryCopy(capture);
             if (editor != null) editor.AddCapture(capture);
             else waiting.Add((capture, scale));
-            Tray?.ShowBalloon("Screenshot taken",
+            ShowBalloon("Screenshot taken",
                 (copied ? "It's on your clipboard. " : "") + "Your full-screen app kept running. Click here to frame it.");
             return;
         }
@@ -225,7 +336,7 @@ public partial class App : Application
             try { list.Add((Import.LoadFile(f), System.IO.Path.GetFileNameWithoutExtension(f))); }
             catch { }
         }
-        if (list.Count == 0) Instance.Tray?.ShowBalloon("Scr can't open that picture", "It may be damaged or in a format Windows can't read.");
+        if (list.Count == 0) Instance.ShowBalloon("Scr can't open that picture", "It may be damaged or in a format Windows can't read.");
         return list;
     }
 
@@ -234,7 +345,7 @@ public partial class App : Application
     {
         if (pictures.Count == 0)
         {
-            if (ifNone.StartsWith("There's")) Tray?.ShowBalloon("Nothing to frame", ifNone);
+            if (ifNone.StartsWith("There's")) ShowBalloon("Nothing to frame", ifNone);
             return;
         }
         if (editor == null)

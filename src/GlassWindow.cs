@@ -1,23 +1,27 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shell;
 
 namespace Scr;
 
-/// <summary>A frameless window with Windows 11 acrylic behind it, Windows' own shadow and title bar buttons.</summary>
+/// <summary>
+/// A frameless window with Windows 11 acrylic behind it, Windows' own shadow, and a 44 px title bar with
+/// Scr's own minimise, maximise and close buttons (like Kalendar), so everything in the title bar lines up.
+/// </summary>
 public class GlassWindow : Window
 {
     /// <summary>The acrylic backdrop needs Windows 11 22H2 or newer; older systems get solid colours.</summary>
     public static bool HasAcrylic => Environment.OSVersion.Version.Build >= 22621;
 
-    /// <summary>Where Windows draws its minimise/maximise/close buttons, in this window's own units (top right).</summary>
-    public Rect CaptionButtons { get; private set; } = new(0, 0, 138, 32);
-    bool measured;
+    public const double TitleHeight = 44;
+    const double ButtonWidth = 46;
 
-    /// <summary>Raised when the caption buttons move or change size, so the title bar can line up with them.</summary>
-    public event Action? CaptionButtonsChanged;
+    readonly StackPanel captionButtons = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top };
+    Button? maxButton;
 
     public GlassWindow()
     {
@@ -28,19 +32,76 @@ public class GlassWindow : Window
         UseLayoutRounding = true;
         WindowChrome.SetWindowChrome(this, new WindowChrome
         {
-            CaptionHeight = 44,
+            CaptionHeight = TitleHeight,
             GlassFrameThickness = new Thickness(-1),
             ResizeBorderThickness = new Thickness(6),
-            UseAeroCaptionButtons = true,
+            UseAeroCaptionButtons = false,
             CornerRadius = new CornerRadius(0),
         });
-        SourceInitialized += (_, _) => ApplyBackdrop();
-        Loaded += (_, _) => MeasureCaptionButtons();
-        SizeChanged += (_, _) => MeasureCaptionButtons();
-        DpiChanged += (_, _) => MeasureCaptionButtons();
+        SourceInitialized += (_, _) =>
+        {
+            var h = new WindowInteropHelper(this).Handle;
+            HwndSource.FromHwnd(h)?.AddHook(Hook);
+            HideWindowsButtons(h);
+            ApplyBackdrop();
+        };
     }
 
-    /// <summary>Applies dark or light frame, rounded corners, acrylic and the shadow. Called again when the theme changes.</summary>
+    /// <summary>Width taken by the caption buttons on the right, for laying out the title bar.</summary>
+    public double CaptionWidth => (ResizeMode == ResizeMode.NoResize ? 1 : 3) * ButtonWidth;
+
+    protected override void OnInitialized(EventArgs e)
+    {
+        base.OnInitialized(e);
+        // Put our own caption buttons on top of the window's content, top right.
+        if (Content is UIElement content)
+        {
+            BuildCaptionButtons();
+            var host = new Grid();
+            Content = host;
+            host.Children.Add(content);
+            host.Children.Add(captionButtons);
+        }
+    }
+
+    void BuildCaptionButtons()
+    {
+        Button Make(string glyph, string tip, bool close, Action click)
+        {
+            var b = new Button { Content = glyph, ToolTip = tip, Style = (Style)FindResource(close ? "CaptionClose" : "CaptionBtn") };
+            WindowChrome.SetIsHitTestVisibleInChrome(b, true);
+            b.Click += (_, _) => click();
+            captionButtons.Children.Add(b);
+            return b;
+        }
+        if (ResizeMode != ResizeMode.NoResize)
+        {
+            Make("", "Minimise", false, () => WindowState = WindowState.Minimized);
+            maxButton = Make("", "Maximise", false, () => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+        }
+        Make("", "Close", true, Close);
+    }
+
+    /// <summary>Windows draws its own small caption buttons unless the window has no system menu, so that bit is removed (and kept off).</summary>
+    static void HideWindowsButtons(IntPtr h)
+    {
+        long style = GetWindowLongPtr(h, GWL_STYLE).ToInt64();
+        SetWindowLongPtr(h, GWL_STYLE, new IntPtr(style & ~WS_SYSMENU));
+    }
+
+    IntPtr Hook(IntPtr hwnd, int msg, IntPtr w, IntPtr l, ref bool handled)
+    {
+        const int WM_STYLECHANGING = 0x007C;
+        if (msg == WM_STYLECHANGING && w.ToInt32() == GWL_STYLE)
+        {
+            var ss = Marshal.PtrToStructure<STYLESTRUCT>(l);
+            ss.styleNew &= ~(uint)WS_SYSMENU;
+            Marshal.StructureToPtr(ss, l, false);
+        }
+        return IntPtr.Zero;
+    }
+
+    /// <summary>Applies dark or light frame, rounded corners and acrylic. Called again when the theme changes.</summary>
     public void ApplyBackdrop()
     {
         var h = new WindowInteropHelper(this).Handle;
@@ -49,9 +110,7 @@ public class GlassWindow : Window
         Native.DwmSetWindowAttribute(h, Native.DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, 4);
         int round = 2;
         Native.DwmSetWindowAttribute(h, Native.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, 4);
-
-        // Make sure Windows draws its normal window shadow around the frameless window, as it does for Kalendar and Notat.
-        int ncEnabled = 2; // DWMNCRP_ENABLED
+        int ncEnabled = 2; // DWMNCRP_ENABLED: Windows draws the normal window shadow
         Native.DwmSetWindowAttribute(h, Native.DWMWA_NCRENDERING_POLICY, ref ncEnabled, 4);
         var margins = new Native.MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
         Native.DwmExtendFrameIntoClientArea(h, ref margins);
@@ -65,37 +124,12 @@ public class GlassWindow : Window
         }
     }
 
-    void MeasureCaptionButtons()
-    {
-        var h = new WindowInteropHelper(this).Handle;
-        if (h == IntPtr.Zero) return;
-        if (Native.DwmGetWindowAttribute(h, Native.DWMWA_CAPTION_BUTTON_BOUNDS, out Native.RECT r, System.Runtime.InteropServices.Marshal.SizeOf<Native.RECT>()) != 0)
-            return;
-        var dpi = VisualTreeHelper.GetDpi(this);
-        var rect = new Rect(r.Left / dpi.DpiScaleX, r.Top / dpi.DpiScaleY,
-                            (r.Right - r.Left) / dpi.DpiScaleX, (r.Bottom - r.Top) / dpi.DpiScaleY);
-        if (rect.Width <= 0 || rect.Height <= 0 || (measured && rect == CaptionButtons)) return;
-        CaptionButtons = rect;
-        measured = true;
-        CaptionButtonsChanged?.Invoke();
-    }
-
-    /// <summary>Lines a title bar element up with Windows' buttons: same height and top, ending just left of them.</summary>
+    /// <summary>Gives a title bar the full 44 px height, ending just left of the caption buttons.</summary>
     protected void AlignTitleBar(FrameworkElement bar, double leftMargin)
     {
-        void Apply()
-        {
-            var b = CaptionButtons;
-            double inset = WindowState == WindowState.Maximized ? 7 : 0;
-            // Until Windows reports where its buttons are, assume the usual three 46-wide buttons.
-            double right = measured ? Math.Max(0, ActualWidth - b.Left - inset) + 4 : 142;
-            bar.VerticalAlignment = VerticalAlignment.Top;
-            bar.Height = b.Height;
-            bar.Margin = new Thickness(leftMargin, Math.Max(0, b.Top - inset), right, 0);
-        }
-        CaptionButtonsChanged += Apply;
-        SizeChanged += (_, _) => Apply();
-        Apply();
+        bar.VerticalAlignment = VerticalAlignment.Stretch;
+        bar.Height = double.NaN;
+        bar.Margin = new Thickness(leftMargin, 0, CaptionWidth + 6, 0);
     }
 
     protected override void OnStateChanged(EventArgs e)
@@ -104,5 +138,20 @@ public class GlassWindow : Window
         // A maximised frameless window hangs a few pixels off each edge; pull the content back in.
         if (Content is FrameworkElement fe)
             fe.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
+        if (maxButton != null)
+        {
+            bool max = WindowState == WindowState.Maximized;
+            maxButton.Content = max ? "" : "";
+            maxButton.ToolTip = max ? "Restore" : "Maximise";
+        }
     }
+
+    const int GWL_STYLE = -16;
+    const long WS_SYSMENU = 0x00080000;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct STYLESTRUCT { public uint styleOld, styleNew; }
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] static extern IntPtr GetWindowLongPtr(IntPtr h, int i);
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] static extern IntPtr SetWindowLongPtr(IntPtr h, int i, IntPtr v);
 }

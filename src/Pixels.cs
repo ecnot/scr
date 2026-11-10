@@ -173,24 +173,35 @@ public static class Pixels
         }
     }
 
-    /// <summary>The average colour along the outer edge, used to fill the inset so it blends with the capture.</summary>
-    public static Color EdgeColor(BitmapSource src)
+    /// <summary>
+    /// The average colour along the outer edge, used to fill the inset so it blends with the capture,
+    /// and how much the edge varies (small for a plain one-colour background).
+    /// </summary>
+    public static Color EdgeColor(BitmapSource src, out double spread)
     {
         var conv = new FormatConvertedBitmap(src, PixelFormats.Bgra32, null, 0);
         int w = conv.PixelWidth, h = conv.PixelHeight;
         long b = 0, g = 0, r = 0, n = 0;
+        double b2 = 0, g2 = 0, r2 = 0;
         void Add(Int32Rect rect)
         {
             if (rect.Width <= 0 || rect.Height <= 0) return;
             var px = new byte[rect.Width * rect.Height * 4];
             conv.CopyPixels(rect, px, rect.Width * 4, 0);
-            for (int i = 0; i < px.Length; i += 4) { b += px[i]; g += px[i + 1]; r += px[i + 2]; n++; }
+            for (int i = 0; i < px.Length; i += 4)
+            {
+                b += px[i]; g += px[i + 1]; r += px[i + 2]; n++;
+                b2 += px[i] * px[i]; g2 += px[i + 1] * px[i + 1]; r2 += px[i + 2] * px[i + 2];
+            }
         }
         Add(new Int32Rect(0, 0, w, 1));
         Add(new Int32Rect(0, h - 1, w, 1));
         Add(new Int32Rect(0, 0, 1, h));
         Add(new Int32Rect(w - 1, 0, 1, h));
+        spread = 0;
         if (n == 0) return Colors.White;
+        double mb = (double)b / n, mg = (double)g / n, mr = (double)r / n;
+        spread = Math.Sqrt(Math.Max(0, b2 / n - mb * mb) + Math.Max(0, g2 / n - mg * mg) + Math.Max(0, r2 / n - mr * mr));
         return Color.FromRgb((byte)(r / n), (byte)(g / n), (byte)(b / n));
     }
 }

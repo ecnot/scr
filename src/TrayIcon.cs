@@ -23,7 +23,9 @@ public sealed class TrayIcon : IDisposable
     bool hotkeyOn;
     int mods, vk;
 
-    public event Action? Capture, FullScreen, OpenEditor, OpenPicture, PastePicture, Settings, OpenFolder, Quit;
+    public event Action? Capture, FullScreen, OpenEditor, OpenPicture, PastePicture, Settings, OpenFolder, Quit, BalloonClicked, Update;
+    readonly MenuItem updateItem;
+    readonly Separator updateSeparator = new() { Visibility = Visibility.Collapsed };
 
     public TrayIcon()
     {
@@ -47,6 +49,11 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Open screenshots folder", () => OpenFolder?.Invoke()));
         menu.Items.Add(Item("Settings", () => Settings?.Invoke()));
+        updateItem = Item("Update", () => Update?.Invoke());
+        updateItem.Visibility = Visibility.Collapsed;
+        updateItem.FontWeight = FontWeights.SemiBold;
+        menu.Items.Add(updateSeparator);
+        menu.Items.Add(updateItem);
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Quit Scr", () => Quit?.Invoke()));
         menu.Closed += (_, _) => menuHost?.Hide();
@@ -90,6 +97,13 @@ public sealed class TrayIcon : IDisposable
         Shell_NotifyIcon(NIM_MODIFY, ref d);
     }
 
+    /// <summary>Shows "Update to Scr x.y.z" in the menu, or hides it (null).</summary>
+    public void SetUpdateItem(string? text)
+    {
+        updateItem.Header = text ?? "Update";
+        updateItem.Visibility = updateSeparator.Visibility = text == null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     /// <summary>Registers the global shortcut. False if another app already has it.</summary>
     public bool SetHotkey(int newMods, int newVk)
     {
@@ -120,7 +134,7 @@ public sealed class TrayIcon : IDisposable
         {
             int m = (int)(l.ToInt64() & 0xFFFF);
             if (m == WM_LBUTTONUP) Capture?.Invoke();
-            else if (m == NIN_BALLOONUSERCLICK) OpenEditor?.Invoke();
+            else if (m == NIN_BALLOONUSERCLICK) BalloonClicked?.Invoke();
             else if (m == WM_RBUTTONUP) ShowMenu();
             handled = true;
         }

@@ -75,7 +75,14 @@
               <RadioButton x:Name="ModeDark" Content="Dark" Style="{StaticResource Seg}"/>
             </UniformGrid>
           </Border>
-          <TextBlock Style="{StaticResource Note}" Margin="0,8,0,0" Text="The same themes as Kalendar."/>
+          <DockPanel x:Name="GlassRow" Margin="0,16,0,0">
+            <TextBlock Text="Transparency" VerticalAlignment="Center" Margin="0,0,16,0"/>
+            <TextBlock DockPanel.Dock="Right" Text="Solid" Style="{StaticResource Note}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+            <TextBlock Text="Clear" Style="{StaticResource Note}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <Slider x:Name="GlassSlider" Style="{StaticResource FrameSlider}" Minimum="1" Maximum="5" TickFrequency="1"
+                    IsSnapToTickEnabled="True" SmallChange="1" LargeChange="1" VerticalAlignment="Center"/>
+          </DockPanel>
+          <TextBlock x:Name="GlassNote" Style="{StaticResource Note}" Margin="0,8,0,0" Text="The same themes and transparency as Kalendar."/>
 
           <TextBlock Style="{StaticResource SectionLabel}" Text="SAVING" Margin="0,22,0,10"/>
           <DockPanel>
@@ -84,6 +91,18 @@
               <TextBlock Text="Save… starts in"/>
               <TextBlock x:Name="FolderText" Style="{StaticResource Note}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
+          </DockPanel>
+
+          <TextBlock Style="{StaticResource SectionLabel}" Text="UPDATES" Margin="0,22,0,12"/>
+          <CheckBox x:Name="CheckUpdates" Style="{StaticResource Switch}">
+            <StackPanel>
+              <TextBlock Text="Check for updates"/>
+              <TextBlock Style="{StaticResource Note}" Text="Once a day Scr asks GitHub if there's a new version, and offers to update with one click. Nothing else is sent."/>
+            </StackPanel>
+          </CheckBox>
+          <DockPanel Margin="0,12,0,0">
+            <Button DockPanel.Dock="Right" x:Name="UpdateBtn" Style="{StaticResource Btn}" Margin="12,0,0,0"/>
+            <TextBlock x:Name="UpdateText" Style="{StaticResource Note}" VerticalAlignment="Center"/>
           </DockPanel>
 
           <TextBlock Style="{StaticResource SectionLabel}" Text="STARTUP" Margin="0,22,0,12"/>
