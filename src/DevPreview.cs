@@ -92,6 +92,32 @@ static class DevPreview
         File.WriteAllLines(Path.Combine(outDir, "shadow.txt"), lines);
     }
 
+    /// <summary>Captures a Scr window that sits far off-screen (so nothing shows), the way a clicked window is captured.</summary>
+    static void WindowTest(string outDir)
+    {
+        Directory.CreateDirectory(outDir);
+        ThemeColors.Apply(Application.Current.Resources, "Lavender", false, glass: true);
+        var w = new SettingsWindow(false) { WindowStartupLocation = WindowStartupLocation.Manual, Left = -30000, Top = -30000, Width = 520, Height = 420, ShowActivated = false, ShowInTaskbar = false };
+        w.Show();
+        Wait(800);
+        var h = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+        var pic = ScreenCapture.CaptureWindow(h);
+        DiagNative.GetWindowRect(h, out var wr);
+        DiagNative.DwmGetWindowAttribute(h, 9, out DiagNative.RECT fr, 16);
+        File.WriteAllText(Path.Combine(outDir, "window.txt"),
+            pic == null ? "no picture (fell back)" : $"picture {pic.PixelWidth}x{pic.PixelHeight}, window {wr.Right - wr.Left}x{wr.Bottom - wr.Top}, visible {fr.Right - fr.Left}x{fr.Bottom - fr.Top}");
+        if (pic != null) FrameRenderer.SavePng(pic, Path.Combine(outDir, "window.png"));
+        // What the first switch looks like inside the real window.
+        var sw = (System.Windows.Controls.CheckBox)w.FindName("WinShiftS");
+        var knob = sw.Template?.FindName("knob", sw) as FrameworkElement;
+        var on = sw.Template?.FindName("on", sw) as UIElement;
+        var track = sw.Template?.FindName("track", sw) as FrameworkElement;
+        var tt = knob?.RenderTransform as System.Windows.Media.TranslateTransform;
+        File.AppendAllText(Path.Combine(outDir, "window.txt"),
+            "\n" + $"switch checked={sw.IsChecked} loaded={sw.IsLoaded} template={(sw.Template != null)} knob={(knob != null)} knobX={tt?.X} frozen={tt?.IsFrozen} on={(on != null)} onOpacity={on?.Opacity} track={track?.ActualWidth}x{track?.ActualHeight} trackBrush={(track as System.Windows.Controls.Border)?.Background}" + "\n");
+        w.Close();
+    }
+
     static double BandDifference(BitmapSource a, BitmapSource b, int m, int fw, int fh)
     {
         int w = a.PixelWidth, h = a.PixelHeight, stride = w * 4;
@@ -125,6 +151,7 @@ static class DevPreview
     {
         if (args.Length >= 3 && args[0] == "--diag") { Diagnose(args[1], Load(args[2])); return; }
         if (args.Length >= 2 && args[0] == "--shadow-test") { ShadowTest(args[1]); return; }
+        if (args.Length >= 2 && args[0] == "--window-test") { WindowTest(args[1]); return; }
         string outDir = args.Length > 0 ? args[0] : ".";
         Directory.CreateDirectory(outDir);
         var sample = Load(args.Length > 1 ? args[1] : null);

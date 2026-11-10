@@ -18,7 +18,8 @@ public sealed class CaptureSession
 
     BitmapSource? full;
     Int32Rect virt;
-    List<Int32Rect> windows = new();
+    List<ScreenCapture.WindowInfo> windows = new();
+    IntPtr hoverWindow; // the window a click would take
     List<ScreenCapture.Monitor> monitors = new();
     readonly List<OverlayWindow> overlays = new();
     Point? down;
@@ -131,12 +132,13 @@ public sealed class CaptureSession
     {
         foreach (var w in windows)
         {
-            if (ScreenCapture.Contains(w, Cursor))
+            if (ScreenCapture.Contains(w.Bounds, Cursor))
             {
-                var r = ScreenCapture.Intersect(w, virt);
-                if (r.Width > 0) { Hole = r; return; }
+                var r = ScreenCapture.Intersect(w.Bounds, virt);
+                if (r.Width > 0) { Hole = r; hoverWindow = w.Handle; return; }
             }
         }
+        hoverWindow = IntPtr.Zero;
         var mon = monitors.FirstOrDefault(m => ScreenCapture.Contains(m.Bounds, Cursor));
         Hole = mon.Bounds.Width > 0 ? mon.Bounds : virt;
     }
@@ -148,9 +150,12 @@ public sealed class CaptureSession
         r = ScreenCapture.Intersect(r, virt);
         BitmapSource? bmp = null;
         double scale = 1;
+        // A clicked window is taken directly from Windows: no border, no desktop in the corners, nothing in front of it.
+        if (!Dragging && hoverWindow != IntPtr.Zero && r.Width >= 2)
+            bmp = ScreenCapture.CaptureWindow(hoverWindow);
         if (r.Width >= 2 && r.Height >= 2)
         {
-            bmp = ScreenCapture.Copy(full, new Int32Rect(r.X - virt.X, r.Y - virt.Y, r.Width, r.Height));
+            bmp ??= ScreenCapture.Copy(full, new Int32Rect(r.X - virt.X, r.Y - virt.Y, r.Width, r.Height));
             var centre = new Point(r.X + r.Width / 2.0, r.Y + r.Height / 2.0);
             scale = monitors.FirstOrDefault(m => ScreenCapture.Contains(m.Bounds, centre)).Scale;
             if (scale <= 0) scale = 1;

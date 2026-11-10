@@ -13,6 +13,7 @@ namespace Scr;
 public static class ScreenCapture
 {
     public readonly record struct Monitor(Int32Rect Bounds, double Scale);
+    public readonly record struct WindowInfo(IntPtr Handle, Int32Rect Bounds);
 
     public static Int32Rect VirtualScreen => new(
         GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN),
@@ -37,9 +38,9 @@ public static class ScreenCapture
     }
 
     /// <summary>Visible top-level windows, front to back, with their visible bounds (no invisible resize borders).</summary>
-    public static List<Int32Rect> Windows()
+    public static List<WindowInfo> Windows()
     {
-        var list = new List<Int32Rect>();
+        var list = new List<WindowInfo>();
         EnumWindows((h, _) =>
         {
             if (!IsWindowVisible(h) || IsIconic(h)) return true;
@@ -51,7 +52,7 @@ public static class ScreenCapture
             if (DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, out RECT r, Marshal.SizeOf<RECT>()) != 0)
                 GetWindowRect(h, out r);
             if (r.Right - r.Left < 24 || r.Bottom - r.Top < 24) return true;
-            list.Add(ToRect(r));
+            list.Add(new WindowInfo(h, ToRect(r)));
             return true;
         }, IntPtr.Zero);
         return list;
@@ -98,6 +99,64 @@ public static class ScreenCapture
             DeleteDC(mem);
             ReleaseDC(IntPtr.Zero, screen);
         }
+    }
+
+    /// <summary>
+    /// The window's own picture, the way Alt+Tab previews are made: just its content, without the border Windows
+    /// draws around it or the desktop in its rounded corners, and whole even when other windows cover part of it.
+    /// Null if Windows can't give one (some apps that draw with the graphics card come back black).
+    /// </summary>
+    public static BitmapSource? CaptureWindow(IntPtr hwnd)
+    {
+        if (!GetWindowRect(hwnd, out RECT wr)) return null;
+        if (DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, out RECT fr, Marshal.SizeOf<RECT>()) != 0) fr = wr;
+        int w = wr.Right - wr.Left, h = wr.Bottom - wr.Top;
+        if (w <= 0 || h <= 0 || w > 16384 || h > 16384) return null;
+
+        IntPtr screen = GetDC(IntPtr.Zero);
+        IntPtr mem = CreateCompatibleDC(screen);
+        IntPtr bmp = CreateCompatibleBitmap(screen, w, h);
+        IntPtr old = SelectObject(mem, bmp);
+        try
+        {
+            const uint PW_RENDERFULLCONTENT = 2;
+            bool ok = PrintWindow(hwnd, mem, PW_RENDERFULLCONTENT);
+            SelectObject(mem, old);
+            if (!ok) return null;
+            var src = Imaging.CreateBitmapSourceFromHBitmap(bmp, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            // Only the visible window: the invisible resize borders around it are cut off.
+            var part = Intersect(new Int32Rect(fr.Left - wr.Left, fr.Top - wr.Top, fr.Right - fr.Left, fr.Bottom - fr.Top), new Int32Rect(0, 0, w, h));
+            if (part.Width < 2 || part.Height < 2) return null;
+            var picture = Copy(src, part);
+            return LooksEmpty(picture) ? null : picture;
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            DeleteObject(bmp);
+            DeleteDC(mem);
+            ReleaseDC(IntPtr.Zero, screen);
+        }
+    }
+
+    /// <summary>True if a picture is (almost) all black, which is how a window that can't be printed comes back.</summary>
+    static bool LooksEmpty(BitmapSource bmp)
+    {
+        int w = bmp.PixelWidth, h = bmp.PixelHeight, stride = w * 4;
+        var px = new byte[stride * h];
+        bmp.CopyPixels(px, stride, 0);
+        int lit = 0, n = 0;
+        for (int y = 0; y < h; y += Math.Max(1, h / 40))
+            for (int x = 0; x < w; x += Math.Max(1, w / 40))
+            {
+                int i = y * stride + x * 4;
+                if (px[i] + px[i + 1] + px[i + 2] > 30) lit++;
+                n++;
+            }
+        return n == 0 || lit < n * 0.03;
     }
 
     /// <summary>An independent opaque copy of part of a bitmap (so the big full-screen grab can be let go).</summary>

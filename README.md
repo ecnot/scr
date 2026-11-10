@@ -76,7 +76,7 @@ Phone photos come in the right way up, and pictures with see-through parts keep 
 When you press the shortcut, the screen freezes and dims. Then:
 
 - **drag** to pick an area,
-- **click** a window to take just that window,
+- **click** a window to take just that window: the whole window, without the border or anything in front of it,
 - press <kbd>Enter</kbd> to take the whole screen,
 - or press <kbd>Esc</kbd> or right-click to cancel.
 
