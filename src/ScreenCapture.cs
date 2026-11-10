@@ -57,6 +57,27 @@ public static class ScreenCapture
         return list;
     }
 
+    /// <summary>
+    /// The monitor covered by the app in front, if that app is full screen (a game, a video, a presentation).
+    /// Null for normal and maximised windows, the desktop and the taskbar.
+    /// </summary>
+    public static Monitor? FullScreenAppMonitor()
+    {
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return null;
+        GetWindowThreadProcessId(fg, out uint pid);
+        if (pid == (uint)Environment.ProcessId) return null;
+        if (ClassName(fg) is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return null;
+        if (!GetWindowRect(fg, out RECT r)) return null;
+        foreach (var m in Monitors())
+        {
+            var b = m.Bounds;
+            if (r.Left <= b.X && r.Top <= b.Y && r.Right >= b.X + b.Width && r.Bottom >= b.Y + b.Height)
+                return m;
+        }
+        return null;
+    }
+
     /// <summary>Copies a part of the screen (in physical pixels) to an opaque bitmap.</summary>
     public static BitmapSource Capture(Int32Rect r)
     {
@@ -87,6 +108,19 @@ public static class ScreenCapture
         var px = new byte[stride * part.Height];
         conv.CopyPixels(part, px, stride, 0);
         var bmp = BitmapSource.Create(part.Width, part.Height, 96, 96, PixelFormats.Bgr32, null, px, stride);
+        bmp.Freeze();
+        return bmp;
+    }
+
+    /// <summary>An independent copy of part of a picture that keeps see-through parts (for cropping).</summary>
+    public static BitmapSource CopyKeepAlpha(BitmapSource src, Int32Rect part)
+    {
+        part = Intersect(part, new Int32Rect(0, 0, src.PixelWidth, src.PixelHeight));
+        var conv = new FormatConvertedBitmap(src, PixelFormats.Pbgra32, null, 0);
+        int stride = part.Width * 4;
+        var px = new byte[stride * part.Height];
+        conv.CopyPixels(part, px, stride, 0);
+        var bmp = BitmapSource.Create(part.Width, part.Height, 96, 96, PixelFormats.Pbgra32, null, px, stride);
         bmp.Freeze();
         return bmp;
     }

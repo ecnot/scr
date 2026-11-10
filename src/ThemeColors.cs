@@ -1,13 +1,37 @@
+using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace Scr;
 
-/// <summary>Colours in the Kalendar family: Lavender theme, one accent, frosted surfaces. Light and dark follow Windows.</summary>
+/// <summary>A theme from Kalendar: a pale three-stop gradient for the window and an accent colour that goes with it.</summary>
+public sealed record AppTheme(string Name, Color[] Stops, Color Accent);
+
+/// <summary>Colours in the Kalendar family: the same eight themes, frosted surfaces, light and dark.</summary>
 public static class ThemeColors
 {
     public static bool IsDark { get; private set; }
+
+    static Color C(string hex) => (Color)ColorConverter.ConvertFromString(hex);
+    static AppTheme T(string name, string a, string b, string c, string accent) => new(name, new[] { C(a), C(b), C(c) }, C(accent));
+
+    /// <summary>The same themes, in the same order, as Kalendar. Lavender is the default.</summary>
+    public static readonly AppTheme[] Themes =
+    {
+        T("Blossom", "#fef1f6", "#fdecf3", "#faedf7", "#bd3177"),
+        T("Peach", "#fff7e8", "#feeee5", "#fce7e8", "#a84f18"),
+        T("Honey", "#fff9dc", "#fff5d9", "#fdf1dc", "#8a6100"),
+        T("Meadow", "#f1f8e7", "#e8f6f0", "#eaf3f8", "#377a30"),
+        T("Glacier", "#e5edfb", "#f1f4fd", "#fbfcfe", "#1f4fb4"),
+        T("Lavender", "#efeefc", "#ebebfa", "#e9e9fa", "#5558c0"),
+        T("Dusk", "#edebfb", "#f6eaf7", "#fbecf0", "#824bc5"),
+        T("Slate", "#f4f5f7", "#eff1f4", "#e9ebf0", "#475569"),
+    };
+
+    public static AppTheme Find(string? name) =>
+        Themes.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)) ?? Themes[5];
 
     public static bool SystemIsDark()
     {
@@ -19,37 +43,57 @@ public static class ThemeColors
         catch { return false; }
     }
 
-    static SolidColorBrush B(uint argb)
+    static SolidColorBrush B(uint argb) => Solid(Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb));
+
+    static SolidColorBrush Solid(Color c)
     {
-        var b = new SolidColorBrush(Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb));
+        var b = new SolidColorBrush(c);
         b.Freeze();
         return b;
     }
 
-    static Brush Tint(byte alpha, params uint[] rgb)
+    static Color WithAlpha(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
+
+    static Color Mix(Color a, Color b, double t) => Color.FromRgb(
+        (byte)Math.Round(a.R + (b.R - a.R) * t), (byte)Math.Round(a.G + (b.G - a.G) * t), (byte)Math.Round(a.B + (b.B - a.B) * t));
+
+    /// <summary>The window's background: the theme gradient at 160°, see-through over acrylic.</summary>
+    public static Brush Gradient(Color[] stops, byte alpha)
     {
         var b = new LinearGradientBrush { StartPoint = new Point(0.33, 0), EndPoint = new Point(0.67, 1) };
-        for (int i = 0; i < rgb.Length; i++)
-        {
-            var c = rgb[i];
-            b.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, (byte)(c >> 16), (byte)(c >> 8), (byte)c), (double)i / (rgb.Length - 1)));
-        }
+        for (int i = 0; i < stops.Length; i++)
+            b.GradientStops.Add(new GradientStop(WithAlpha(stops[i], alpha), (double)i / (stops.Length - 1)));
         b.Freeze();
         return b;
     }
 
-    public static void Apply(ResourceDictionary r, bool dark, bool glass)
+    /// <summary>The accent for dark mode: same hue, lighter (as Kalendar does it).</summary>
+    static Color DarkAccent(Color c)
+    {
+        var (h, s, _) = ToHsl(c);
+        return FromHsl(h, Math.Clamp(s, 0.55, 0.8), 0.70);
+    }
+
+    /// <summary>Dark mode's near-black, with a hint of the theme's hue.</summary>
+    static Color DarkBase(Color accent, double lightness)
+    {
+        var (h, _, _) = ToHsl(accent);
+        return FromHsl(h, 0.18, lightness);
+    }
+
+    public static void Apply(ResourceDictionary r, string? themeName, bool dark, bool glass)
     {
         IsDark = dark;
+        var theme = Find(themeName);
         if (!dark)
         {
-            r["B.WindowTint"] = Tint(glass ? (byte)0x9E : (byte)0xFF, 0xEFEEFC, 0xEBEBFA, 0xE9E9FA);
+            r["B.WindowTint"] = Gradient(theme.Stops, glass ? (byte)0x9E : (byte)0xFF);
             r["B.Ink"] = B(0xFF1D1D1F);
             r["B.InkInverse"] = B(0xFFFFFFFF);
             r["B.Muted"] = B(0xFF6B6A66);
-            r["B.Accent"] = B(0xFF5558C0);
+            r["B.Accent"] = Solid(theme.Accent);
             r["B.AccentInk"] = B(0xFFFFFFFF);
-            r["B.AccentSoft"] = B(0x245558C0);
+            r["B.AccentSoft"] = Solid(WithAlpha(theme.Accent, 0x24));
             r["B.Hairline"] = B(0x121E1E3C);
             r["B.HairlineStrong"] = B(0x2A1E1E3C);
             r["B.Sheet"] = B(0x9EFFFFFF);
@@ -67,13 +111,17 @@ public static class ThemeColors
         }
         else
         {
-            r["B.WindowTint"] = Tint(glass ? (byte)0xDB : (byte)0xFF, 0x17161F, 0x15151D, 0x14141B);
+            // The theme's gradient seen through a dark veil, with a hint of its hue.
+            var veil = DarkBase(theme.Accent, 0.10);
+            var stops = theme.Stops.Select(s => Mix(s, veil, 0.88)).ToArray();
+            var accent = DarkAccent(theme.Accent);
+            r["B.WindowTint"] = Gradient(stops, glass ? (byte)0xDB : (byte)0xFF);
             r["B.Ink"] = B(0xFFECECEA);
             r["B.InkInverse"] = B(0xFF15151E);
             r["B.Muted"] = B(0xFF9A9993);
-            r["B.Accent"] = B(0xFF9A9CF0);
-            r["B.AccentInk"] = B(0xFF15151E);
-            r["B.AccentSoft"] = B(0x2E9A9CF0);
+            r["B.Accent"] = Solid(accent);
+            r["B.AccentInk"] = Solid(DarkBase(theme.Accent, 0.09));
+            r["B.AccentSoft"] = Solid(WithAlpha(accent, 0x2E));
             r["B.Hairline"] = B(0x16FFFFFF);
             r["B.HairlineStrong"] = B(0x2EFFFFFF);
             r["B.Sheet"] = B(0x12FFFFFF);
@@ -84,10 +132,46 @@ public static class ThemeColors
             r["B.Track"] = B(0x2AFFFFFF);
             r["B.SegTrack"] = B(0x1AFFFFFF);
             r["B.SegOn"] = B(0x3CFFFFFF);
-            r["B.Menu"] = B(0xF5272731);
+            r["B.Menu"] = Solid(WithAlpha(DarkBase(theme.Accent, 0.16), 0xF5));
             r["B.MenuEdge"] = B(0x22FFFFFF);
             r["B.SwitchOff"] = B(0x45FFFFFF);
             r["B.GhostHover"] = B(0x16FFFFFF);
         }
+    }
+
+    // ---------- HSL ----------
+
+    public static (double H, double S, double L) ToHsl(Color c)
+    {
+        double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+        double max = Math.Max(r, Math.Max(g, b)), min = Math.Min(r, Math.Min(g, b));
+        double l = (max + min) / 2, h = 0, s = 0;
+        if (max != min)
+        {
+            double d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            if (max == r) h = (g - b) / d + (g < b ? 6 : 0);
+            else if (max == g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+            h /= 6;
+        }
+        return (h, s, l);
+    }
+
+    public static Color FromHsl(double h, double s, double l)
+    {
+        double Hue(double p, double q, double t)
+        {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1.0 / 6) return p + (q - p) * 6 * t;
+            if (t < 0.5) return q;
+            if (t < 2.0 / 3) return p + (q - p) * (2.0 / 3 - t) * 6;
+            return p;
+        }
+        double q2 = l < 0.5 ? l * (1 + s) : l + s - l * s, p2 = 2 * l - q2;
+        return Color.FromRgb((byte)Math.Round(Hue(p2, q2, h + 1.0 / 3) * 255),
+                             (byte)Math.Round(Hue(p2, q2, h) * 255),
+                             (byte)Math.Round(Hue(p2, q2, h - 1.0 / 3) * 255));
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 
@@ -16,6 +17,9 @@ public partial class SettingsWindow : GlassWindow
     public SettingsWindow(bool welcome)
     {
         InitializeComponent();
+        AlignTitleBar(TitleBar, 14);
+        Height = Math.Min(Height, SystemParameters.WorkArea.Height * 0.94);
+        BuildThemes();
 
         if (welcome)
         {
@@ -29,6 +33,8 @@ public partial class SettingsWindow : GlassWindow
         WinShiftS.IsChecked = S.TakeOverWinShiftS;
         CopyNow.IsChecked = S.CopyOnCapture;
         CloseAfter.IsChecked = S.CloseAfterCopy;
+        QuietFullScreen.IsChecked = S.QuietFullScreen;
+        (S.ColorMode switch { ColorMode.Light => ModeLight, ColorMode.Dark => ModeDark, _ => ModeSystem }).IsChecked = true;
         FolderText.Text = S.SaveFolderOrDefault;
         try { StartWithWindows.IsChecked = AppSettings.StartWithWindows; } catch { }
         var v = Assembly.GetExecutingAssembly().GetName().Version;
@@ -41,6 +47,11 @@ public partial class SettingsWindow : GlassWindow
         CopyNow.Unchecked += (_, _) => Set(() => S.CopyOnCapture = false);
         CloseAfter.Checked += (_, _) => Set(() => S.CloseAfterCopy = true);
         CloseAfter.Unchecked += (_, _) => Set(() => S.CloseAfterCopy = false);
+        QuietFullScreen.Checked += (_, _) => Set(() => S.QuietFullScreen = true);
+        QuietFullScreen.Unchecked += (_, _) => Set(() => S.QuietFullScreen = false);
+        ModeSystem.Checked += (_, _) => SetMode(ColorMode.System);
+        ModeLight.Checked += (_, _) => SetMode(ColorMode.Light);
+        ModeDark.Checked += (_, _) => SetMode(ColorMode.Dark);
         StartWithWindows.Checked += (_, _) => SetStartup(true);
         StartWithWindows.Unchecked += (_, _) => SetStartup(false);
         FolderBtn.Click += (_, _) => ChooseFolder();
@@ -53,6 +64,27 @@ public partial class SettingsWindow : GlassWindow
         Deactivated += (_, _) => StopRecording();
         Closed += (_, _) => StopRecording();
     }
+
+    void BuildThemes()
+    {
+        var tile = (Style)FindResource("ThemeTile");
+        foreach (var t in ThemeColors.Themes)
+        {
+            var theme = t;
+            var rb = new RadioButton
+            {
+                Style = tile,
+                Content = theme.Name,
+                Background = ThemeColors.Gradient(theme.Stops, 0xFF),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(theme.Accent),
+                IsChecked = string.Equals(theme.Name, S.Theme, StringComparison.OrdinalIgnoreCase),
+            };
+            rb.Checked += (_, _) => Set(() => { S.Theme = theme.Name; App.Instance.RefreshTheme(); });
+            ThemeGrid.Children.Add(rb);
+        }
+    }
+
+    void SetMode(ColorMode mode) => Set(() => { S.ColorMode = mode; App.Instance.RefreshTheme(); });
 
     void Set(Action change)
     {

@@ -9,18 +9,20 @@ namespace Scr;
 public enum BackdropKind { Solid, Gradient, Picture }
 public enum GradientShape { Linear, Mesh, Radial }
 public enum AspectRatio { Auto, Wide, Classic, Square }
+public enum ColorMode { System, Light, Dark }
 
 /// <summary>How a capture is framed. Sizes are in "units" that grow with the capture, so a style looks the same on small and big shots.</summary>
 public sealed class FrameStyle
 {
     public double Padding { get; set; } = 70;
-    public double Shadow { get; set; } = 55;
+    public double Shadow { get; set; } = 55;      // strength
+    public double ShadowSize { get; set; } = 40;
     public double Inset { get; set; } = 0;
     public double OuterRadius { get; set; } = 14;
     public double InnerRadius { get; set; } = 8;
     public BackdropKind Kind { get; set; } = BackdropKind.Gradient;
     public string SolidColor { get; set; } = "#FFFFFF";
-    public int GradientIndex { get; set; } = 0;
+    public int GradientIndex { get; set; } = -1; // -1: colours from the screenshot
     public GradientShape Shape { get; set; } = GradientShape.Mesh;
     public bool Reversed { get; set; }
     public int Seed { get; set; } = 3;
@@ -28,6 +30,9 @@ public sealed class FrameStyle
     public string? PicturePath { get; set; }
     public bool PictureBlur { get; set; } = true;
     public AspectRatio Ratio { get; set; } = AspectRatio.Auto;
+    public RedactKind RedactKind { get; set; } = RedactKind.Pixelate;
+    public MarkKind HighlightKind { get; set; } = MarkKind.Box;
+    public string MarkColor { get; set; } = "#E5484D";
 
     public FrameStyle Clone() => (FrameStyle)MemberwiseClone();
 
@@ -40,6 +45,9 @@ public sealed class AppSettings
     public int HotkeyMods { get; set; } = 0;
     public int HotkeyVk { get; set; } = 0x2C; // Print Screen
     public bool TakeOverWinShiftS { get; set; } = true;
+    public bool QuietFullScreen { get; set; } = true;
+    public string Theme { get; set; } = "Lavender";
+    public ColorMode ColorMode { get; set; } = ColorMode.System;
     public bool CopyOnCapture { get; set; } = true;
     public bool CloseAfterCopy { get; set; } = true;
     public string? SaveFolder { get; set; }

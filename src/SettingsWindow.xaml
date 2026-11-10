@@ -11,7 +11,7 @@
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <StackPanel Orientation="Horizontal" Margin="14,0,0,0">
+    <StackPanel x:Name="TitleBar" Orientation="Horizontal" Margin="14,0,0,0">
       <Image Source="Assets/scr.ico" Width="18" Height="18" VerticalAlignment="Center"/>
       <TextBlock Text="Scr settings" FontWeight="SemiBold" FontSize="12.5" Margin="8,0,0,1" VerticalAlignment="Center"/>
     </StackPanel>
@@ -58,6 +58,24 @@
               <TextBlock Style="{StaticResource Note}" Text="Copy (or Enter) puts it on the clipboard and gets out of your way."/>
             </StackPanel>
           </CheckBox>
+
+          <CheckBox x:Name="QuietFullScreen" Style="{StaticResource Switch}" Margin="0,14,0,0">
+            <StackPanel>
+              <TextBlock Text="Leave full-screen games alone"/>
+              <TextBlock Style="{StaticResource Note}" Text="When a game or video fills the screen, Scr takes the whole screen without leaving it. The capture waits in the editor."/>
+            </StackPanel>
+          </CheckBox>
+
+          <TextBlock Style="{StaticResource SectionLabel}" Text="APPEARANCE" Margin="0,22,0,12"/>
+          <UniformGrid x:Name="ThemeGrid" Columns="4" Margin="0,0,-8,0"/>
+          <Border Style="{StaticResource SegTrack}" Margin="0,4,0,0">
+            <UniformGrid Rows="1">
+              <RadioButton x:Name="ModeSystem" Content="Same as Windows" Style="{StaticResource Seg}"/>
+              <RadioButton x:Name="ModeLight" Content="Light" Style="{StaticResource Seg}"/>
+              <RadioButton x:Name="ModeDark" Content="Dark" Style="{StaticResource Seg}"/>
+            </UniformGrid>
+          </Border>
+          <TextBlock Style="{StaticResource Note}" Margin="0,8,0,0" Text="The same themes as Kalendar."/>
 
           <TextBlock Style="{StaticResource SectionLabel}" Text="SAVING" Margin="0,22,0,10"/>
           <DockPanel>

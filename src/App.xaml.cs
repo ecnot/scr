@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Windows;
@@ -97,11 +98,14 @@ public partial class App : Application
 
         AppSettings.MigrateFromSnap();
         Settings = AppSettings.Load();
-        ThemeColors.Apply(Resources, ThemeColors.SystemIsDark(), GlassWindow.HasAcrylic);
+        RefreshTheme();
 
         Tray = new TrayIcon();
         Tray.Capture += StartCapture;
         Tray.FullScreen += () => { RefreshTheme(); CaptureSession.FullScreenNow(); };
+        Tray.OpenEditor += ShowEditor;
+        Tray.OpenPicture += () => OpenPictures(AskForPictures(null), "Scr can't open that picture.");
+        Tray.PastePicture += () => OpenPictures(Import.FromClipboard(), "There's no picture on the clipboard.");
         Tray.Settings += () => ShowSettings(false);
         Tray.OpenFolder += OpenSaveFolder;
         Tray.Quit += () => Shutdown();
@@ -134,24 +138,142 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    void RefreshTheme() => ThemeColors.Apply(Resources, ThemeColors.SystemIsDark(), GlassWindow.HasAcrylic);
+    /// <summary>Applies the chosen theme and light/dark to every open window.</summary>
+    public void RefreshTheme()
+    {
+        bool dark = Settings.ColorMode switch
+        {
+            ColorMode.Light => false,
+            ColorMode.Dark => true,
+            _ => ThemeColors.SystemIsDark(),
+        };
+        bool changed = dark != ThemeColors.IsDark;
+        ThemeColors.Apply(Resources, Settings.Theme, dark, GlassWindow.HasAcrylic);
+        if (changed)
+            foreach (Window w in Windows)
+                if (w is GlassWindow g) g.ApplyBackdrop();
+    }
+
+    EditorWindow? editor;
+    readonly List<(BitmapSource Capture, double Scale)> waiting = new(); // quiet captures before the editor is open
 
     public void StartCapture()
     {
         if (CaptureSession.IsActive) return;
         RefreshTheme();
+        // A full-screen game minimises if anything takes focus, so capture its screen quietly instead.
+        if (Settings.QuietFullScreen && ScreenCapture.FullScreenAppMonitor() is ScreenCapture.Monitor m)
+        {
+            try { OpenEditor(ScreenCapture.Capture(m.Bounds), m.Scale, quiet: true); }
+            catch (Exception ex) { Tray?.ShowBalloon("Scr couldn't capture the screen", ex.Message); }
+            return;
+        }
         CaptureSession.Start();
     }
 
-    public void OpenEditor(BitmapSource capture, double scale)
+    /// <summary>
+    /// Puts the plain screenshot on the clipboard and adds it to the editor as a new tab.
+    /// Quiet captures (from a full-screen app) never take focus; they wait until you open the editor.
+    /// </summary>
+    public void OpenEditor(BitmapSource capture, double scale, bool quiet = false)
     {
-        var editor = new EditorWindow(capture, scale);
-        editor.Closed += (_, _) => ScheduleTrim();
-        editor.Show();
-        editor.Activate();
+        if (quiet)
+        {
+            bool copied = Settings.CopyOnCapture && TryCopy(capture);
+            if (editor != null) editor.AddCapture(capture);
+            else waiting.Add((capture, scale));
+            Tray?.ShowBalloon("Screenshot taken",
+                (copied ? "It's on your clipboard. " : "") + "Your full-screen app kept running. Click here to frame it.");
+            return;
+        }
+
+        if (editor != null)
+        {
+            editor.AddCapture(capture);
+            if (editor.WindowState == WindowState.Minimized) editor.WindowState = WindowState.Normal;
+            editor.Activate();
+        }
+        else
+        {
+            CreateEditor(capture, scale);
+        }
         // The plain screenshot goes on the clipboard at once; Copy in the editor swaps in the framed one.
         if (Settings.CopyOnCapture)
-            editor.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(editor.CopyPlainQuietly));
+        {
+            var ed = editor!;
+            ed.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                if (TryCopy(capture)) ed.ShowNote("Screenshot copied. Copy swaps in the framed one.");
+            }));
+        }
+    }
+
+    static bool TryCopy(BitmapSource bmp)
+    {
+        try { ClipboardImage.Set(bmp); return true; }
+        catch { return false; }
+    }
+
+    /// <summary>Asks for one or more picture files and opens them. An empty list if cancelled.</summary>
+    public static List<(BitmapSource Picture, string? Name)> AskForPictures(Window? owner)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Open pictures to frame", Filter = Import.Filter, Multiselect = true };
+        var list = new List<(BitmapSource, string?)>();
+        if (dlg.ShowDialog(owner) != true) return list;
+        foreach (var f in dlg.FileNames)
+        {
+            try { list.Add((Import.LoadFile(f), System.IO.Path.GetFileNameWithoutExtension(f))); }
+            catch { }
+        }
+        if (list.Count == 0) Instance.Tray?.ShowBalloon("Scr can't open that picture", "It may be damaged or in a format Windows can't read.");
+        return list;
+    }
+
+    /// <summary>Opens pictures (from a file or the clipboard) in the editor, without touching the clipboard.</summary>
+    public void OpenPictures(List<(BitmapSource Picture, string? Name)> pictures, string ifNone)
+    {
+        if (pictures.Count == 0)
+        {
+            if (ifNone.StartsWith("There's")) Tray?.ShowBalloon("Nothing to frame", ifNone);
+            return;
+        }
+        if (editor == null)
+        {
+            var (first, name) = pictures[0];
+            CreateEditor(first, 1, name ?? "Pasted");
+            pictures = pictures.GetRange(1, pictures.Count - 1);
+        }
+        editor!.AddPictures(pictures, ifNone);
+        if (editor.WindowState == WindowState.Minimized) editor.WindowState = WindowState.Normal;
+        editor.Activate();
+    }
+
+    void CreateEditor(BitmapSource capture, double scale, string? name = null)
+    {
+        RefreshTheme();
+        var ed = new EditorWindow(capture, scale, name);
+        foreach (var w in waiting) ed.AddCapture(w.Capture);
+        waiting.Clear();
+        ed.Closed += (_, _) => { if (editor == ed) editor = null; ScheduleTrim(); };
+        editor = ed;
+        ed.Show();
+        ed.Activate();
+    }
+
+    /// <summary>Shows the editor with any captures waiting (tray menu, or clicking the notice).</summary>
+    public void ShowEditor()
+    {
+        if (editor != null)
+        {
+            if (editor.WindowState == WindowState.Minimized) editor.WindowState = WindowState.Normal;
+            editor.Activate();
+        }
+        else if (waiting.Count > 0)
+        {
+            var first = waiting[0];
+            waiting.RemoveAt(0);
+            CreateEditor(first.Capture, first.Scale);
+        }
     }
 
     public void ShowSettings(bool welcome)

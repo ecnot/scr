@@ -20,15 +20,31 @@ static class DevPreview
         var sample = Load(args.Length > 1 ? args[1] : null);
         double dpi = 1.5;
 
-        foreach (bool dark in new[] { false, true })
-        {
-            ThemeColors.Apply(Application.Current.Resources, dark, glass: true);
-            var ed = new EditorWindow(sample, dpi) { Width = 1180, Height = 760 };
-            Snapshot((FrameworkElement)ed.Content, 1180, 760, dark, Path.Combine(outDir, dark ? "editor-dark.png" : "editor-light.png"));
+        // Two more "captures" for the tabs: parts of the sample.
+        var part1 = ScreenCapture.Copy(sample, new Int32Rect(0, 0, sample.PixelWidth / 3, sample.PixelHeight * 2 / 3));
+        var part2 = ScreenCapture.Copy(sample, new Int32Rect(sample.PixelWidth / 4, sample.PixelHeight / 4, sample.PixelWidth / 2, sample.PixelHeight / 3));
 
-            var st = new SettingsWindow(welcome: true);
-            Snapshot((FrameworkElement)st.Content, st.Width, st.Height, dark, Path.Combine(outDir, dark ? "settings-dark.png" : "settings-light.png"));
+        foreach (var (theme, dark, file) in new[] { ("Lavender", false, "light"), ("Lavender", true, "dark"), ("Meadow", false, "meadow"), ("Dusk", true, "dusk-dark") })
+        {
+            App.Instance.Settings.Theme = theme;
+            ThemeColors.Apply(Application.Current.Resources, theme, dark, glass: true);
+            var ed = new EditorWindow(part1, dpi) { Width = 1180, Height = 760 };
+            if (args.Length > 1) ed.AddCapture(Import.LoadFile(args[1]), System.IO.Path.GetFileNameWithoutExtension(args[1]));
+            ed.AddCapture(part2);
+            ed.AddCapture(sample);
+            ed.EditForPreview(f =>
+            {
+                f.AddRedaction(new Redaction(new Int32Rect(13, 478, 328, 50), RedactKind.Pixelate));
+                f.AddRedaction(new Redaction(new Int32Rect(13, 883, 328, 70), RedactKind.Blur));
+                f.AddMark(new Mark(MarkKind.Box, new Int32Rect(708, 323, 178, 36), Color.FromRgb(0xE5, 0x48, 0x4D)));
+            }, "Highlight");
+            Snapshot((FrameworkElement)ed.Content, 1180, 760, dark, Path.Combine(outDir, $"editor-{file}.png"));
+
+            var st = new SettingsWindow(welcome: false) { Height = 1060 };
+            Snapshot((FrameworkElement)st.Content, st.Width, 1060, dark, Path.Combine(outDir, $"settings-{file}.png"));
         }
+        App.Instance.Settings.Theme = "Lavender";
+        ThemeColors.Apply(Application.Current.Resources, "Lavender", false, glass: true);
 
         var src = new FrameSource(sample);
         void Example(string name, Action<FrameStyle> change)
@@ -42,7 +58,18 @@ static class DevPreview
         Example("sunset-wide", s => { s.GradientIndex = 10; s.Ratio = AspectRatio.Wide; s.OuterRadius = 20; });
         Example("inset-white", s => { s.Kind = BackdropKind.Solid; s.SolidColor = "#F3F4F6"; s.Inset = 30; s.InnerRadius = 10; s.OuterRadius = 22; });
         Example("blurred", s => { s.Kind = BackdropKind.Picture; s.Padding = 90; });
+        {
+            var sp = new FrameSource(sample);
+            sp.AddMark(new Mark(MarkKind.Spotlight, new Int32Rect(350, 100, 1240, 380), Colors.Red));
+            sp.AddMark(new Mark(MarkKind.Marker, new Int32Rect(1086, 186, 140, 30), Color.FromRgb(0xF5, 0xA5, 0x24)));
+            sp.SetCrop(new Int32Rect(0, 0, 1600, 700));
+            FrameRenderer.SavePng(FrameRenderer.RenderBitmap(sp, new FrameStyle()), Path.Combine(outDir, "framed-spotlight-crop.png"));
+        }
+        Example("auto", s => { s.GradientIndex = -1; s.Shape = GradientShape.Mesh; });
+        Example("auto-linear", s => { s.GradientIndex = -1; s.Shape = GradientShape.Linear; s.Seed = 1; });
         Example("transparent", s => { s.Kind = BackdropKind.Solid; s.SolidColor = "#00FFFFFF"; s.Padding = 50; });
+        Example("shadow-big", s => { s.Kind = BackdropKind.Solid; s.SolidColor = "#F3F4F6"; s.Padding = 110; s.Shadow = 75; s.ShadowSize = 95; });
+        Example("shadow-tight", s => { s.Kind = BackdropKind.Solid; s.SolidColor = "#F3F4F6"; s.Padding = 110; s.Shadow = 70; s.ShadowSize = 8; });
 
         // A rough timing of a full render, for the size of the sample.
         FrameRenderer.Build(src, new FrameStyle { Shadow = 10 });

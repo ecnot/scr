@@ -29,24 +29,45 @@ capture is instant.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/editor-dark.png">
-  <img src="docs/screenshots/editor-light.png" alt="The Scr editor: the framed screenshot on the left, the frame controls on the right">
+  <img src="docs/screenshots/editor-light.png" alt="The Scr editor: captures as tabs at the top, the framed screenshot with the tool bar, and the frame controls on the right">
 </picture>
 
-- **Frame:** Backdrop (the room around it), Shadow, Corners, Inset (a margin in the screenshot's own edge colour) and Inner corners.
-- **Backdrop:** a solid colour (or see-through), one of 24 gradients drawn as Mesh, Linear or Radial (with Swap and Shuffle), or a picture: a blurred copy of the screenshot itself, or one of your own.
+Every capture opens as a **tab** in one editor window, so you can take a few and frame them one after another.
+Each tab keeps its own frame and edits. <kbd>Ctrl</kbd> + <kbd>Tab</kbd> switches tabs, and <kbd>Ctrl</kbd> + <kbd>W</kbd> or the tab's × closes one.
+
+- **Frame:** Backdrop (the room around it), Corners, Inset (a margin in the screenshot's own edge colour) and Inner corners.
+- **Shadow:** Strength and Size, from a short close shadow to a big soft one.
+- **Backdrop:** a solid colour (or see-through), a gradient drawn as Mesh, Linear or Radial (with Swap and Shuffle), or a picture: a blurred copy of the screenshot itself, or one of your own.
+  The first gradient, with the little sparkle, is **From the screenshot**: colours picked from your capture so the backdrop always suits it.
 - **Size:** Fit, 16:9, 4:3 or 1:1, for posts and slides.
 - **Plain** takes the frame off, and clicking it again puts the frame back. Scr remembers your last frame for next time.
 - **Copy** (<kbd>Enter</kbd> or <kbd>Ctrl</kbd> + <kbd>C</kbd>) and **Save…** (<kbd>Ctrl</kbd> + <kbd>S</kbd>, PNG).
 
-The window follows Windows' light or dark mode and has the frosted Windows 11 look.
+### Tools
 
+The small bar on the picture has four tools. Nothing happens until you click one; click it again or press <kbd>Esc</kbd> to switch it off.
+
+- **Redact** (<kbd>R</kbd>): drag over names, numbers or faces to **pixelate** or **blur** them. It's baked into the pixels, so it can't be undone by whoever you send it to.
+- **Crop** (<kbd>C</kbd>): drag the part to keep. Click Crop again to change it, or Reset to get the whole capture back.
+- **Highlight** (<kbd>H</kbd>): a **box** outline or a see-through **marker**, in red, yellow, green or blue.
+- **Spotlight** (<kbd>S</kbd>): dims everything except the parts you drag.
+
+One **Undo** (<kbd>Ctrl</kbd> + <kbd>Z</kbd>) steps back through all of them.
+
+<p align="center">
+  <img src="docs/screenshots/framed-spotlight-crop.png" width="49%" alt="A cropped capture with a spotlight and a yellow marker">
+  <img src="docs/screenshots/framed-auto-linear.png" width="49%" alt="A backdrop with colours picked from the screenshot">
+</p>
 <p align="center">
   <img src="docs/screenshots/framed-sunset-wide.png" width="49%" alt="Framed on a sunset gradient at 16:9">
   <img src="docs/screenshots/framed-inset-white.png" width="49%" alt="Framed with an inset on a light grey backdrop">
 </p>
-<p align="center">
-  <img src="docs/screenshots/framed-blurred.png" width="49%" alt="Framed on a blurred copy of the screenshot">
-</p>
+
+### Pictures you already have
+
+Frame any picture, not just captures: press <kbd>Ctrl</kbd> + <kbd>O</kbd> or drop picture files on the editor, or paste
+one with <kbd>Ctrl</kbd> + <kbd>V</kbd>. The tray menu has **Open a picture…** and **Frame the clipboard picture** too.
+Phone photos come in the right way up, and pictures with see-through parts keep them.
 
 ## Capturing
 
@@ -59,9 +80,13 @@ When you press the shortcut, the screen freezes and dims. Then:
 
 It works across several monitors, each with its own scaling, and captures in real pixels.
 
-Click the tray icon to capture too. Right-click it to capture the whole screen, open your screenshots folder,
-change Settings or quit. Starting Scr again while it's running also takes a capture, so a pinned Scr icon works as a
-capture button.
+**Full-screen games and videos are left alone.** A full-screen game minimises if another window takes focus, so when
+something fills the screen, Scr quietly takes the whole screen instead. The game keeps running, the screenshot is on your
+clipboard, and a small notice lets you open it in the editor whenever you like.
+
+Click the tray icon to capture too. Right-click it to capture the whole screen, open the editor, open or paste a picture,
+open your screenshots folder, change Settings or quit. Starting Scr again while it's running also takes a capture, so a
+pinned Scr icon works as a capture button.
 
 ## Settings
 
@@ -72,7 +97,8 @@ capture button.
 
 - **Shortcut:** <kbd>Print Screen</kbd> to start with. Click it and press the keys you'd like instead.
 - **Win + Shift + S opens Scr:** takes the Snipping Tool shortcut over from Windows (on to start with).
-- **Copy the screenshot straight away** and **Close the editor after Copy.**
+- **Copy the screenshot straight away**, **Close the editor after Copy** and **Leave full-screen games alone.**
+- **Appearance:** the same eight themes as Kalendar (Blossom, Peach, Honey, Meadow, Glacier, Lavender, Dusk, Slate), and Same as Windows, Light or Dark.
 - Where **Save…** starts (Pictures\Screenshots to start with), and **Start with Windows**.
 
 ### Print Screen and Snipping Tool
@@ -125,11 +151,13 @@ Scr is written in C# with WPF on .NET 10, with no extra packages. The tray icon 
 | `src/CaptureSession.cs`, `src/OverlayWindow.cs` | The frozen, dimmed screen: one overlay per monitor, in real pixels |
 | `src/ScreenCapture.cs` | The screen copy, monitors and window outlines |
 | `src/FrameRenderer.cs`, `src/Pixels.cs` | The frame: backdrop, shadow, corners, inset. The same drawing is shown live and rendered for Copy and Save |
-| `src/EditorWindow.xaml(.cs)` | The editor |
+| `src/EditorWindow.xaml(.cs)` | The editor: tabs, tools and frame controls |
 | `src/SettingsWindow.xaml(.cs)` | Settings and the shortcut recorder |
 | `src/TrayIcon.cs`, `src/Hotkey.cs` | Tray icon, menu and global shortcut |
 | `src/KeyboardHook.cs` | Takes over Win + Shift + S, or a shortcut another app already has |
-| `src/Theme.xaml`, `src/ThemeColors.cs`, `src/GlassWindow.cs` | The look: colours, frosted window, light and dark |
+| `src/Redact.cs` | Pixelate and blur, highlights and spotlights, and the colours for "From the screenshot" |
+| `src/Import.cs` | Opening, dropping and pasting pictures |
+| `src/Theme.xaml`, `src/ThemeColors.cs`, `src/GlassWindow.cs` | The look: Kalendar's themes, frosted window, light and dark |
 | `tools/make-icon.ps1` | Draws `src/Assets/scr.ico` |
 
 A Debug build has `Scr.exe --preview <folder> <picture>`, which draws the editor, Settings and some framed examples

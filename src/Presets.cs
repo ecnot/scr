@@ -39,7 +39,6 @@ public static class Presets
         G("Night sky", "#0B0B2A", "#2A2C6C", "#8C7BC2"),
         G("Pebble", "#8F9EAB", "#E9EEF0", "#C3CCD2"),
         G("Graphite", "#353A43", "#4D5563", "#737F8E"),
-        G("Ink", "#1E1F24", "#2C2E36", "#454857"),
     };
 
     public static readonly string[] Solids =

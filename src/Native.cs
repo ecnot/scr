@@ -60,6 +60,14 @@ internal static class Native
     [StructLayout(LayoutKind.Sequential)]
     public struct MSG { public IntPtr hwnd; public int message; public IntPtr wParam, lParam; public uint time; public POINT pt; }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MARGINS { public int Left, Right, Top, Bottom; }
+
+    [DllImport("dwmapi.dll")] public static extern int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref MARGINS margins);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
     public delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll", SetLastError = true)] public static extern IntPtr SetWindowsHookEx(int id, HookProc proc, IntPtr hMod, uint threadId);
@@ -123,7 +131,8 @@ internal static class Native
     public const uint SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000;
     public const int SM_XVIRTUALSCREEN = 76, SM_YVIRTUALSCREEN = 77, SM_CXVIRTUALSCREEN = 78, SM_CYVIRTUALSCREEN = 79, SM_CXSMICON = 49;
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9, DWMWA_CLOAKED = 14, DWMWA_USE_IMMERSIVE_DARK_MODE = 20,
-                     DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWA_SYSTEMBACKDROP_TYPE = 38;
+                     DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWA_SYSTEMBACKDROP_TYPE = 38,
+                     DWMWA_NCRENDERING_POLICY = 2, DWMWA_CAPTION_BUTTON_BOUNDS = 5;
     public const int GWL_EXSTYLE = -20, WS_EX_TRANSPARENT = 0x20;
     public static readonly IntPtr HWND_TOPMOST = new(-1);
     public const uint SWP_NOACTIVATE = 0x0010;

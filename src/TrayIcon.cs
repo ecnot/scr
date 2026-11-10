@@ -12,7 +12,7 @@ namespace Scr;
 public sealed class TrayIcon : IDisposable
 {
     const int WM_TRAY = 0x8001, WM_HOTKEY = 0x0312, WM_LBUTTONUP = 0x0202, WM_RBUTTONUP = 0x0205;
-    const int HotkeyId = 1;
+    const int HotkeyId = 1, NIN_BALLOONUSERCLICK = 0x0405;
 
     readonly HwndSource source;
     readonly int taskbarCreated;
@@ -23,7 +23,7 @@ public sealed class TrayIcon : IDisposable
     bool hotkeyOn;
     int mods, vk;
 
-    public event Action? Capture, FullScreen, Settings, OpenFolder, Quit;
+    public event Action? Capture, FullScreen, OpenEditor, OpenPicture, PastePicture, Settings, OpenFolder, Quit;
 
     public TrayIcon()
     {
@@ -40,6 +40,10 @@ public sealed class TrayIcon : IDisposable
         captureItem = Item("Capture", () => Capture?.Invoke());
         menu.Items.Add(captureItem);
         menu.Items.Add(Item("Capture the whole screen", () => FullScreen?.Invoke()));
+        menu.Items.Add(Item("Open the editor", () => OpenEditor?.Invoke()));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Open a picture…", () => OpenPicture?.Invoke()));
+        menu.Items.Add(Item("Frame the clipboard picture", () => PastePicture?.Invoke()));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Open screenshots folder", () => OpenFolder?.Invoke()));
         menu.Items.Add(Item("Settings", () => Settings?.Invoke()));
@@ -116,6 +120,7 @@ public sealed class TrayIcon : IDisposable
         {
             int m = (int)(l.ToInt64() & 0xFFFF);
             if (m == WM_LBUTTONUP) Capture?.Invoke();
+            else if (m == NIN_BALLOONUSERCLICK) OpenEditor?.Invoke();
             else if (m == WM_RBUTTONUP) ShowMenu();
             handled = true;
         }
