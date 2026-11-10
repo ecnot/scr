@@ -1,0 +1,87 @@
+<local:GlassWindow x:Class="Scr.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Scr"
+        Title="Scr settings" Width="520" Height="780" ResizeMode="NoResize"
+        Icon="Assets/scr.ico" WindowStartupLocation="CenterScreen">
+  <Grid x:Name="Root" Background="{DynamicResource B.WindowTint}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="44"/>
+      <RowDefinition/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Orientation="Horizontal" Margin="14,0,0,0">
+      <Image Source="Assets/scr.ico" Width="18" Height="18" VerticalAlignment="Center"/>
+      <TextBlock Text="Scr settings" FontWeight="SemiBold" FontSize="12.5" Margin="8,0,0,1" VerticalAlignment="Center"/>
+    </StackPanel>
+
+    <Border Grid.Row="1" Margin="10,0,10,0" CornerRadius="8" Background="{DynamicResource B.Sheet}"
+            BorderBrush="{DynamicResource B.SheetEdge}" BorderThickness="1">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel Margin="22,8,22,20">
+          <Border x:Name="Welcome" Visibility="Collapsed" Background="{DynamicResource B.AccentSoft}" CornerRadius="6"
+                  Padding="14,12" Margin="0,12,0,4">
+            <StackPanel>
+              <TextBlock Text="Scr is ready" FontWeight="SemiBold" FontSize="15" FontFamily="Segoe UI Variable Display, Segoe UI"/>
+              <TextBlock x:Name="WelcomeText" Style="{StaticResource Note}" Margin="0,4,0,0"/>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Style="{StaticResource SectionLabel}" Text="SHORTCUT"/>
+          <DockPanel>
+            <Button x:Name="ShortcutBtn" Style="{StaticResource Btn}" MinWidth="170" HorizontalAlignment="Left"
+                    ToolTip="Click, then press the keys you want"/>
+            <TextBlock x:Name="ShortcutNote" Style="{StaticResource Note}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+          </DockPanel>
+          <TextBlock Style="{StaticResource Note}" Margin="0,10,0,0">
+            If Print Screen opens Snipping Tool instead, turn off “Use the Print screen key to open screen capture” in Windows.
+            <Hyperlink x:Name="KeyboardLink">Open keyboard settings</Hyperlink>
+          </TextBlock>
+          <CheckBox x:Name="WinShiftS" Style="{StaticResource Switch}" Margin="0,14,0,0">
+            <StackPanel>
+              <TextBlock Text="Win + Shift + S opens Scr"/>
+              <TextBlock Style="{StaticResource Note}" Text="Takes the Snipping Tool shortcut over from Windows, as well as your own shortcut above."/>
+            </StackPanel>
+          </CheckBox>
+
+          <TextBlock Style="{StaticResource SectionLabel}" Text="AFTER YOU CAPTURE" Margin="0,22,0,12"/>
+          <CheckBox x:Name="CopyNow" Style="{StaticResource Switch}">
+            <StackPanel>
+              <TextBlock Text="Copy the screenshot straight away"/>
+              <TextBlock Style="{StaticResource Note}" Text="The plain screenshot is on the clipboard the moment you take it. Copy in the editor swaps in the framed one."/>
+            </StackPanel>
+          </CheckBox>
+          <CheckBox x:Name="CloseAfter" Style="{StaticResource Switch}" Margin="0,14,0,0">
+            <StackPanel>
+              <TextBlock Text="Close the editor after Copy"/>
+              <TextBlock Style="{StaticResource Note}" Text="Copy (or Enter) puts it on the clipboard and gets out of your way."/>
+            </StackPanel>
+          </CheckBox>
+
+          <TextBlock Style="{StaticResource SectionLabel}" Text="SAVING" Margin="0,22,0,10"/>
+          <DockPanel>
+            <Button DockPanel.Dock="Right" x:Name="FolderBtn" Content="Change…" Style="{StaticResource Btn}" Margin="12,0,0,0"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Save… starts in"/>
+              <TextBlock x:Name="FolderText" Style="{StaticResource Note}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+          </DockPanel>
+
+          <TextBlock Style="{StaticResource SectionLabel}" Text="STARTUP" Margin="0,22,0,12"/>
+          <CheckBox x:Name="StartWithWindows" Style="{StaticResource Switch}">
+            <StackPanel>
+              <TextBlock Text="Start with Windows"/>
+              <TextBlock Style="{StaticResource Note}" Text="Scr waits quietly in the tray, ready for your shortcut."/>
+            </StackPanel>
+          </CheckBox>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <DockPanel Grid.Row="2" Margin="18,12,12,12" LastChildFill="False">
+      <TextBlock x:Name="VersionText" Style="{StaticResource Note}" VerticalAlignment="Center"/>
+      <Button DockPanel.Dock="Right" x:Name="DoneBtn" Content="Done" Style="{StaticResource PrimaryBtn}" MinWidth="92"/>
+    </DockPanel>
+  </Grid>
+</local:GlassWindow>
