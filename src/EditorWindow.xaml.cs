@@ -194,7 +194,7 @@ public partial class EditorWindow : GlassWindow
 
     void Wire()
     {
-        foreach (var s in new[] { PadSlider, ShadowSlider, ShadowSizeSlider, OuterSlider, InsetSlider, InnerSlider })
+        foreach (var s in new[] { PadSlider, ShadowSlider, ShadowSizeSlider, OuterSlider, InsetSlider, InnerSlider, FrostSlider })
             s.ValueChanged += (_, _) => OnSlider();
 
         KindSolid.Checked += (_, _) => SetKind(BackdropKind.Solid);
@@ -239,7 +239,7 @@ public partial class EditorWindow : GlassWindow
         RatioClassic.Checked += (_, _) => SetRatio(AspectRatio.Classic);
         RatioSquare.Checked += (_, _) => SetRatio(AspectRatio.Square);
 
-        NewCaptureBtn.Click += (_, _) => App.Instance.StartCapture();
+        NewCaptureBtn.Click += (_, _) => ShowNewMenu();
         InsetAuto.Checked += (_, _) => SetInsetLook(InsetLook.Auto);
         InsetGlass.Checked += (_, _) => SetInsetLook(InsetLook.Glass);
         InsetEdge.Checked += (_, _) => SetInsetLook(InsetLook.Edge);
@@ -273,6 +273,7 @@ public partial class EditorWindow : GlassWindow
         OuterSlider.Value = style.OuterRadius;
         InsetSlider.Value = style.Inset;
         InnerSlider.Value = style.InnerRadius;
+        FrostSlider.Value = style.GlassFrost;
 
         (style.Kind switch { BackdropKind.Solid => KindSolid, BackdropKind.Picture => KindPicture, _ => KindGradient }).IsChecked = true;
         (style.Shape switch { GradientShape.Linear => ShapeLinear, GradientShape.Radial => ShapeRadial, _ => ShapeMesh }).IsChecked = true;
@@ -307,6 +308,7 @@ public partial class EditorWindow : GlassWindow
         InnerSlider.IsEnabled = inset;
         InnerBox.Opacity = inset ? 1 : 0.55;
         InsetLookPanel.Visibility = inset ? Visibility.Visible : Visibility.Collapsed;
+        FrostBox.Visibility = inset && style.InsetLook == InsetLook.Glass ? Visibility.Visible : Visibility.Collapsed;
         bool shadow = style.Shadow > 0;
         ShadowSizeSlider.IsEnabled = shadow;
     }
@@ -330,6 +332,7 @@ public partial class EditorWindow : GlassWindow
         style.OuterRadius = Math.Round(OuterSlider.Value);
         style.Inset = Math.Round(InsetSlider.Value);
         style.InnerRadius = Math.Round(InnerSlider.Value);
+        style.GlassFrost = Math.Round(FrostSlider.Value);
         UpdatePanels();
         RequestRender();
     }
@@ -343,7 +346,7 @@ public partial class EditorWindow : GlassWindow
         RequestRender();
     }
 
-    void SetInsetLook(InsetLook look) { if (loading) return; style.InsetLook = look; RequestRender(); }
+    void SetInsetLook(InsetLook look) { if (loading) return; style.InsetLook = look; UpdatePanels(); RequestRender(); }
 
     void SetShape(GradientShape s) { if (loading) return; style.Shape = s; RequestRender(); }
     void SetRatio(AspectRatio r) { if (loading) return; style.Ratio = r; RequestRender(); }
@@ -459,6 +462,28 @@ public partial class EditorWindow : GlassWindow
     }
 
     public void ShowNote(string text) => ShowToast(text);
+
+    /// <summary>The + button's menu: a new capture, the clipboard picture, or a picture file.</summary>
+    void ShowNewMenu()
+    {
+        MenuItem Item(string text, string keys, Action click)
+        {
+            var mi = new MenuItem { Header = text, InputGestureText = keys };
+            mi.Click += (_, _) => click();
+            return mi;
+        }
+        var s = App.Instance.Settings;
+        var menu = new ContextMenu
+        {
+            PlacementTarget = NewCaptureBtn,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+            VerticalOffset = 4,
+        };
+        menu.Items.Add(Item("New capture", Hotkey.Format(s.HotkeyMods, s.HotkeyVk), () => App.Instance.StartCapture()));
+        menu.Items.Add(Item("From the clipboard", "Ctrl+V", () => AddPictures(Import.FromClipboard(), "There's no picture on the clipboard.")));
+        menu.Items.Add(Item("Open a picture…", "Ctrl+O", OpenPictures));
+        menu.IsOpen = true;
+    }
 
     // ---------- Opening and pasting pictures ----------
 

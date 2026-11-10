@@ -25,8 +25,9 @@
                  Margin="10,0,8,1" VerticalAlignment="Center"/>
       <StackPanel Orientation="Horizontal" Margin="6,0,0,0">
         <StackPanel x:Name="TabStrip" Orientation="Horizontal" VerticalAlignment="Bottom"/>
-        <Button x:Name="NewCaptureBtn" Style="{StaticResource IconBtn}" Width="30" Height="30" Margin="4,0,0,0" VerticalAlignment="Center"
-                ToolTip="New capture. You can also paste (Ctrl+V), open (Ctrl+O) or drop pictures here." WindowChrome.IsHitTestVisibleInChrome="True">
+        <!-- Lined up with the tab labels (tabs are 35 tall at the bottom of the 44 px bar) -->
+        <Button x:Name="NewCaptureBtn" Style="{StaticResource IconBtn}" Width="30" Height="30" Margin="4,0,0,2" VerticalAlignment="Bottom"
+                ToolTip="New capture, from the clipboard or a picture" WindowChrome.IsHitTestVisibleInChrome="True">
           <Viewbox Width="15" Height="15">
             <Path Data="{StaticResource I.Plus}" Style="{StaticResource Icon}"/>
           </Viewbox>
@@ -41,7 +42,7 @@
       </Grid.ColumnDefinitions>
 
       <!-- The one main surface: the live preview -->
-      <Border x:Name="Sheet" Margin="10,0,2,10" CornerRadius="8" Background="{DynamicResource B.Sheet}"
+      <Border x:Name="Sheet" local:SheetShadow.Enabled="True" Margin="10,0,2,10" CornerRadius="8" Background="{DynamicResource B.Sheet}"
               BorderBrush="{DynamicResource B.SheetEdge}" BorderThickness="1">
         <Grid>
           <Grid Margin="32,62,32,32" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{StaticResource Checker}">
@@ -180,6 +181,15 @@
                 </UniformGrid>
               </Border>
             </DockPanel>
+
+            <StackPanel x:Name="FrostBox" Margin="0,0,0,12">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
+                           Text="{Binding Value, ElementName=FrostSlider, StringFormat={}{0:0}}"/>
+                <TextBlock Text="Frost" FontSize="13" ToolTip="From clear glass to milky, blurred frosted glass"/>
+              </DockPanel>
+              <Slider x:Name="FrostSlider" Style="{StaticResource FrameSlider}" Minimum="0" Maximum="100" Margin="0,4,0,0"/>
+            </StackPanel>
 
             <TextBlock Style="{StaticResource SectionLabel}" Text="SHADOW" Margin="0,4,0,10"/>
             <Grid x:Name="ShadowBox">

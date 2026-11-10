@@ -16,7 +16,7 @@
       <TextBlock Text="Scr settings" FontWeight="SemiBold" FontSize="12.5" Margin="8,0,0,1" VerticalAlignment="Center"/>
     </StackPanel>
 
-    <Border Grid.Row="1" Margin="10,0,10,0" CornerRadius="8" Background="{DynamicResource B.Sheet}"
+    <Border Grid.Row="1" local:SheetShadow.Enabled="True" Margin="10,0,10,0" CornerRadius="8" Background="{DynamicResource B.Sheet}"
             BorderBrush="{DynamicResource B.SheetEdge}" BorderThickness="1">
       <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
         <StackPanel Margin="22,8,22,20">

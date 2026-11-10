@@ -100,8 +100,13 @@ public sealed class FrameSource
         return true;
     }
 
+    // The backdrop, small and blurred, for frosted glass. Kept until the backdrop or the canvas changes.
+    internal string? FrostKey;
+    internal BitmapSource? Frost;
+
     void Changed()
     {
+        Frost = null;
         redacted = null;
         cropped = null;
         blurredCapture = null; // the blurred backdrop is made from the redacted picture too
@@ -192,7 +197,12 @@ public static class FrameRenderer
             src.LastOffset = offset;
             if (inset > 0)
             {
-                if (glass) DrawGlass(dc, cardRect, outerR, u, hasBackdrop);
+                if (glass)
+                {
+                    double frost = Math.Clamp(s.GlassFrost / 100.0, 0, 1);
+                    var frosted = hasBackdrop && frost > 0 ? FrostedBackdrop(src, s, canvas) : null;
+                    DrawGlass(dc, cardRect, outerR, u, hasBackdrop, frost, frosted, canvas);
+                }
                 else dc.DrawRectangle(new SolidColorBrush(src.EdgeColor), null, cardRect);
                 dc.PushClip(new RectangleGeometry(imgRect, innerR, innerR));
                 dc.DrawImage(cap, imgRect);
@@ -222,10 +232,18 @@ public static class FrameRenderer
     /// The glass inset: see-through and lightly frosted over the backdrop, brighter at the top like light falling on it,
     /// with a bright rim that fades from the top-left corner.
     /// </summary>
-    static void DrawGlass(DrawingContext dc, Rect card, double radius, double u, bool hasBackdrop)
+    static void DrawGlass(DrawingContext dc, Rect card, double radius, double u, bool hasBackdrop, double frost, BitmapSource? frosted, Rect canvas)
     {
         static Color W(byte a) => Color.FromArgb(a, 255, 255, 255);
-        dc.DrawRectangle(new SolidColorBrush(W(hasBackdrop ? (byte)0x3C : (byte)0xA8)), null, card);
+        // Frost: the backdrop behind the pane, blurred, then a milky white veil. Clear glass has hardly any of either.
+        if (frosted != null)
+        {
+            dc.PushOpacity(frost);
+            dc.DrawImage(frosted, canvas);
+            dc.Pop();
+        }
+        byte veil = hasBackdrop ? (byte)Math.Round(0x18 + frost * 0x8C) : (byte)0xA8;
+        dc.DrawRectangle(new SolidColorBrush(W(veil)), null, card);
 
         var sheen = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
         sheen.GradientStops.Add(new GradientStop(W(0x66), 0));
@@ -283,6 +301,27 @@ public static class FrameRenderer
                 dc.DrawRoundedRectangle(new SolidColorBrush(fill), null, r, 3 * u, 3 * u);
             }
         }
+    }
+
+    /// <summary>The backdrop drawn small and blurred, for the frosted glass inset.</summary>
+    static BitmapSource FrostedBackdrop(FrameSource src, FrameStyle s, Rect canvas)
+    {
+        string key = $"{canvas.Width}x{canvas.Height}|{s.Kind}|{s.SolidColor}|{s.GradientIndex}|{s.Shape}|{s.Reversed}|{s.Seed}|{s.PictureFromCapture}|{s.PicturePath}|{s.PictureBlur}";
+        if (src.Frost != null && src.FrostKey == key) return src.Frost;
+        double k = Math.Min(1.0, 320.0 / Math.Max(canvas.Width, canvas.Height));
+        int w = Math.Max(1, (int)Math.Ceiling(canvas.Width * k)), h = Math.Max(1, (int)Math.Ceiling(canvas.Height * k));
+        var dv = new DrawingVisual();
+        using (var dc = dv.RenderOpen())
+        {
+            dc.PushTransform(new ScaleTransform(k, k));
+            DrawBackdrop(dc, src, s, canvas);
+            dc.Pop();
+        }
+        var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(dv);
+        src.Frost = Pixels.Blur(rtb, 320, 7);
+        src.FrostKey = key;
+        return src.Frost;
     }
 
     static void DrawBackdrop(DrawingContext dc, FrameSource src, FrameStyle s, Rect canvas)

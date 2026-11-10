@@ -13,6 +13,17 @@
     </DrawingBrush.Drawing>
   </DrawingBrush>
 
+  <!-- Focus ring: WPF shows FocusVisualStyle only when you move with the keyboard, never after a click -->
+  <Style x:Key="FocusRing">
+    <Setter Property="Control.Template">
+      <Setter.Value>
+        <ControlTemplate>
+          <Rectangle Margin="-2" RadiusX="7" RadiusY="7" Stroke="{DynamicResource B.Accent}" StrokeThickness="2" SnapsToDevicePixels="True"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- Tabler outline icons (24 x 24) -->
   <Geometry x:Key="I.Settings">M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0</Geometry>
   <Geometry x:Key="I.Swap">M4 8h14 M15 5l3 3l-3 3 M20 16h-14 M9 13l-3 3l3 3</Geometry>
@@ -59,7 +70,7 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Height" Value="34"/>
     <Setter Property="Padding" Value="14,0"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
@@ -73,9 +84,6 @@
             </Trigger>
             <Trigger Property="IsPressed" Value="True">
               <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
-            </Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.Accent}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -102,9 +110,6 @@
             </Trigger>
             <Trigger Property="IsPressed" Value="True">
               <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
-            </Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.Accent}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -146,9 +151,6 @@
               <Setter TargetName="sheen" Property="Opacity" Value="0"/>
               <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
             </Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="ring" Property="BorderBrush" Value="{DynamicResource B.Accent}"/>
-            </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Opacity" Value="0.45"/>
             </Trigger>
@@ -169,7 +171,7 @@
     <Setter Property="Foreground" Value="{DynamicResource B.Muted}"/>
     <Setter Property="Height" Value="28"/>
     <Setter Property="FontSize" Value="13"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
@@ -185,10 +187,6 @@
             <Trigger Property="IsChecked" Value="True">
               <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
             </Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.Accent}"/>
-              <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
-            </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
@@ -199,7 +197,7 @@
   <Style x:Key="Swatch" TargetType="RadioButton">
     <Setter Property="Height" Value="34"/>
     <Setter Property="Margin" Value="0,0,6,6"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
@@ -210,9 +208,6 @@
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="ring" Property="BorderBrush" Value="{DynamicResource B.HairlineStrong}"/>
-            </Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="ring" Property="BorderBrush" Value="{DynamicResource B.HairlineStrong}"/>
             </Trigger>
             <Trigger Property="IsChecked" Value="True">
@@ -227,7 +222,7 @@
   <!-- Toggle switch -->
   <Style x:Key="Switch" TargetType="CheckBox">
     <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="local:Anim.Switch" Value="True"/>
     <Setter Property="Template">
       <Setter.Value>
@@ -249,10 +244,6 @@
             <ContentPresenter Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top"/>
           </Grid>
           <ControlTemplate.Triggers>
-            <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="track" Property="BorderBrush" Value="{DynamicResource B.Accent}"/>
-              <Setter TargetName="track" Property="BorderThickness" Value="1"/>
-            </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
@@ -313,7 +304,7 @@
     <Setter Property="Height" Value="22"/>
     <Setter Property="SmallChange" Value="1"/>
     <Setter Property="LargeChange" Value="10"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Slider">
@@ -526,7 +517,7 @@
     <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
     <Setter Property="Width" Value="34"/>
     <Setter Property="Height" Value="30"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ToggleButton">
@@ -551,7 +542,7 @@
   <Style x:Key="ColorDot" TargetType="RadioButton">
     <Setter Property="Width" Value="24"/>
     <Setter Property="Height" Value="24"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
@@ -585,7 +576,7 @@
     <Setter Property="VerticalAlignment" Value="Bottom"/>
     <Setter Property="Margin" Value="0,0,2,-1"/>
     <Setter Property="FontSize" Value="12.5"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
@@ -612,7 +603,7 @@
   <Style x:Key="ThemeTile" TargetType="RadioButton">
     <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
     <Setter Property="Margin" Value="0,0,8,10"/>
-    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">

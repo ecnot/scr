@@ -20,6 +20,7 @@ public sealed class FrameStyle
     public double ShadowSize { get; set; } = 40;
     public double Inset { get; set; } = 0;
     public InsetLook InsetLook { get; set; } = InsetLook.Auto;
+    public double GlassFrost { get; set; } = 30; // 0 clear glass, 100 milky frosted glass
     public double OuterRadius { get; set; } = 14;
     public double InnerRadius { get; set; } = 8;
     public BackdropKind Kind { get; set; } = BackdropKind.Gradient;

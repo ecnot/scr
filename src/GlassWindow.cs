@@ -18,6 +18,10 @@ public class GlassWindow : Window
     public static bool HasAcrylic => Environment.OSVersion.Version.Build >= 22621;
 
     public const double TitleHeight = 44;
+
+    // For the shadow test only: try other frame setups.
+    internal static double TestGlassFrame = -1;
+    internal static bool TestNoAcrylic, TestKeepSysMenu, TestNoExtend;
     const double ButtonWidth = 46;
 
     readonly StackPanel captionButtons = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top };
@@ -33,7 +37,7 @@ public class GlassWindow : Window
         WindowChrome.SetWindowChrome(this, new WindowChrome
         {
             CaptionHeight = TitleHeight,
-            GlassFrameThickness = new Thickness(-1),
+            GlassFrameThickness = new Thickness(TestGlassFrame),
             ResizeBorderThickness = new Thickness(6),
             UseAeroCaptionButtons = false,
             CornerRadius = new CornerRadius(0),
@@ -42,7 +46,7 @@ public class GlassWindow : Window
         {
             var h = new WindowInteropHelper(this).Handle;
             HwndSource.FromHwnd(h)?.AddHook(Hook);
-            HideWindowsButtons(h);
+            if (!TestKeepSysMenu) HideWindowsButtons(h);
             ApplyBackdrop();
         };
     }
@@ -92,7 +96,7 @@ public class GlassWindow : Window
     IntPtr Hook(IntPtr hwnd, int msg, IntPtr w, IntPtr l, ref bool handled)
     {
         const int WM_STYLECHANGING = 0x007C;
-        if (msg == WM_STYLECHANGING && w.ToInt32() == GWL_STYLE)
+        if (msg == WM_STYLECHANGING && w.ToInt32() == GWL_STYLE && !TestKeepSysMenu)
         {
             var ss = Marshal.PtrToStructure<STYLESTRUCT>(l);
             ss.styleNew &= ~(uint)WS_SYSMENU;
@@ -112,10 +116,13 @@ public class GlassWindow : Window
         Native.DwmSetWindowAttribute(h, Native.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, 4);
         int ncEnabled = 2; // DWMNCRP_ENABLED: Windows draws the normal window shadow
         Native.DwmSetWindowAttribute(h, Native.DWMWA_NCRENDERING_POLICY, ref ncEnabled, 4);
-        var margins = new Native.MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
-        Native.DwmExtendFrameIntoClientArea(h, ref margins);
+        if (!TestNoExtend)
+        {
+            var margins = new Native.MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+            Native.DwmExtendFrameIntoClientArea(h, ref margins);
+        }
 
-        if (HasAcrylic)
+        if (HasAcrylic && !TestNoAcrylic)
         {
             var src = HwndSource.FromHwnd(h);
             if (src?.CompositionTarget != null) src.CompositionTarget.BackgroundColor = Colors.Transparent;

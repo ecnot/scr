@@ -36,6 +36,79 @@ static class DevPreview
         ed.Close();
     }
 
+    static void Wait(int ms)
+    {
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ms) };
+        t.Tick += (_, _) => { t.Stop(); frame.Continue = false; };
+        t.Start();
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
+
+    /// <summary>
+    /// Shows small test windows one at a time (top-left, no focus, not on the taskbar), photographs the screen just
+    /// outside each window with and without it, and writes how much the edge changed: a shadow changes it, no shadow doesn't.
+    /// </summary>
+    static void ShadowTest(string outDir)
+    {
+        Directory.CreateDirectory(outDir);
+        var lines = new System.Collections.Generic.List<string>();
+        var variants = new (string Name, Func<Window> Make, Action Setup)[]
+        {
+            ("plain WPF window (reference)", () => new Window { Background = Brushes.White }, () => { }),
+            ("Scr as it is", () => new SettingsWindow(false), () => { }),
+            ("Scr without acrylic", () => new SettingsWindow(false), () => GlassWindow.TestNoAcrylic = true),
+            ("Scr keeping the system menu", () => new SettingsWindow(false), () => GlassWindow.TestKeepSysMenu = true),
+            ("Scr with glass frame 1", () => new SettingsWindow(false), () => GlassWindow.TestGlassFrame = 1),
+            ("Scr with glass frame 1, no own extend", () => new SettingsWindow(false), () => { GlassWindow.TestGlassFrame = 1; GlassWindow.TestNoExtend = true; }),
+        };
+        int n = 0;
+        foreach (var (name, make, setup) in variants)
+        {
+            GlassWindow.TestGlassFrame = -1; GlassWindow.TestNoAcrylic = GlassWindow.TestKeepSysMenu = GlassWindow.TestNoExtend = false;
+            setup();
+            var w = make();
+            w.WindowStartupLocation = WindowStartupLocation.Manual;
+            w.Left = 120; w.Top = 120; w.Width = 420; w.Height = 300;
+            w.ShowActivated = false; w.ShowInTaskbar = false; w.Topmost = true; w.Title = "Scr shadow test";
+            w.Show();
+            Wait(900);
+            var h = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+            DiagNative.GetWindowRect(h, out var wr);
+            DiagNative.DwmGetWindowAttribute(h, 9, out DiagNative.RECT fr, 16); // the visible frame
+            var area = new Int32Rect(fr.Left - 60, fr.Top - 60, fr.Right - fr.Left + 120, fr.Bottom - fr.Top + 120);
+            var with = ScreenCapture.Capture(area);
+            w.Close();
+            Wait(700);
+            var without = ScreenCapture.Capture(area);
+            n++;
+            FrameRenderer.SavePng(with, Path.Combine(outDir, $"{n}-with.png"));
+            FrameRenderer.SavePng(without, Path.Combine(outDir, $"{n}-without.png"));
+            // How much the 4-40 px band below and right of the visible frame changed.
+            double diff = BandDifference(with, without, 60, fr.Right - fr.Left, fr.Bottom - fr.Top);
+            lines.Add($"{n}. {name}: edge change {diff:0.0} (window {wr.Right - wr.Left}x{wr.Bottom - wr.Top}, visible {fr.Right - fr.Left}x{fr.Bottom - fr.Top})");
+        }
+        GlassWindow.TestGlassFrame = -1; GlassWindow.TestNoAcrylic = GlassWindow.TestKeepSysMenu = GlassWindow.TestNoExtend = false;
+        File.WriteAllLines(Path.Combine(outDir, "shadow.txt"), lines);
+    }
+
+    static double BandDifference(BitmapSource a, BitmapSource b, int m, int fw, int fh)
+    {
+        int w = a.PixelWidth, h = a.PixelHeight, stride = w * 4;
+        var pa = new byte[stride * h]; var pb = new byte[stride * h];
+        new FormatConvertedBitmap(a, PixelFormats.Bgr32, null, 0).CopyPixels(pa, stride, 0);
+        new FormatConvertedBitmap(b, PixelFormats.Bgr32, null, 0).CopyPixels(pb, stride, 0);
+        double sum = 0; int count = 0;
+        for (int y = m + fh + 4; y < Math.Min(h, m + fh + 40); y++)
+            for (int x = m; x < m + fw; x++)
+            {
+                int i = y * stride + x * 4;
+                sum += Math.Abs(pa[i] - pb[i]) + Math.Abs(pa[i + 1] - pb[i + 1]) + Math.Abs(pa[i + 2] - pb[i + 2]);
+                count++;
+            }
+        return count == 0 ? 0 : sum / count / 3;
+    }
+
     static class DiagNative
     {
         [System.Runtime.InteropServices.DllImport("gdi32.dll")] public static extern IntPtr CreateRectRgn(int a, int b, int c, int d);
@@ -43,11 +116,15 @@ static class DevPreview
         [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern int GetWindowRgn(IntPtr h, IntPtr rgn);
         [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern IntPtr GetWindowLongPtr(IntPtr h, int i);
         [System.Runtime.InteropServices.DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out int v, int s);
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out RECT v, int s);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+        public struct RECT { public int Left, Top, Right, Bottom; }
     }
 
     public static void Run(string[] args)
     {
         if (args.Length >= 3 && args[0] == "--diag") { Diagnose(args[1], Load(args[2])); return; }
+        if (args.Length >= 2 && args[0] == "--shadow-test") { ShadowTest(args[1]); return; }
         string outDir = args.Length > 0 ? args[0] : ".";
         Directory.CreateDirectory(outDir);
         var sample = Load(args.Length > 1 ? args[1] : null);
@@ -58,7 +135,7 @@ static class DevPreview
         var part2 = ScreenCapture.Copy(sample, new Int32Rect(sample.PixelWidth / 4, sample.PixelHeight / 4, sample.PixelWidth / 2, sample.PixelHeight / 3));
 
         // An inset in the editor, so the Inset choice (Auto / Glass / Edge colour) shows.
-        App.Instance.Settings.Style = new FrameStyle { Inset = 26, InnerRadius = 10, OuterRadius = 22 };
+        App.Instance.Settings.Style = new FrameStyle { Inset = 26, InnerRadius = 10, OuterRadius = 22, InsetLook = InsetLook.Glass, GlassFrost = 45 };
         foreach (var (theme, dark, file, level) in new[] { ("Lavender", false, "light", 3), ("Lavender", true, "dark", 3), ("Meadow", false, "meadow", 3), ("Dusk", true, "dusk-dark", 3), ("Lavender", false, "clear", 1) })
         {
             App.Instance.Settings.Theme = theme;
@@ -99,6 +176,13 @@ static class DevPreview
         {
             var gs = new FrameStyle { GradientIndex = index, Inset = 40, InnerRadius = 12, OuterRadius = 30, Padding = 90 };
             FrameRenderer.SavePng(FrameRenderer.RenderBitmap(mixed, gs), Path.Combine(outDir, $"framed-{name}.png"));
+        }
+        foreach (var f in new[] { 0, 50, 100 })
+        {
+            var fs = new FrameStyle { GradientIndex = 13, Inset = 40, InnerRadius = 12, OuterRadius = 30, Padding = 90, InsetLook = InsetLook.Glass, GlassFrost = f };
+            FrameRenderer.SavePng(FrameRenderer.RenderBitmap(mixed, fs), Path.Combine(outDir, $"framed-frost-{f}.png"));
+            var ps = new FrameStyle { Kind = BackdropKind.Picture, Inset = 40, InnerRadius = 12, OuterRadius = 30, Padding = 90, InsetLook = InsetLook.Glass, GlassFrost = f };
+            FrameRenderer.SavePng(FrameRenderer.RenderBitmap(mixed, ps), Path.Combine(outDir, $"framed-frost-picture-{f}.png"));
         }
         var edgeStyle = new FrameStyle { GradientIndex = 13, Inset = 40, InnerRadius = 12, OuterRadius = 30, Padding = 90, InsetLook = InsetLook.Edge };
         FrameRenderer.SavePng(FrameRenderer.RenderBitmap(mixed, edgeStyle), Path.Combine(outDir, "framed-edge-dusk.png"));

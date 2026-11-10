@@ -37,7 +37,7 @@ Each tab keeps its own frame and edits. <kbd>Ctrl</kbd> + <kbd>Tab</kbd> switche
 
 - **Frame:** Backdrop (the room around it), Corners, Inset and Inner corners. The inset can be **Glass** (see-through and
   frosted over the backdrop, with a bright rim) or **Edge** (the screenshot's own edge colour). **Auto** picks Edge when the
-  screenshot's edge is one plain colour, and Glass when it's colourful.
+  screenshot's edge is one plain colour, and Glass when it's colourful. With Glass, the **Frost** slider goes from clear glass to milky, blurred frosted glass.
 - **Shadow:** Strength and Size, from a short close shadow to a big soft one.
 - **Backdrop:** a solid colour (or see-through), a gradient drawn as Mesh, Linear or Radial (with Swap and Shuffle), or a picture: a blurred copy of the screenshot itself, or one of your own.
   The first gradient, with the little sparkle, is **From the screenshot**: colours picked from your capture so the backdrop always suits it.
