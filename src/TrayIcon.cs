@@ -23,7 +23,8 @@ public sealed class TrayIcon : IDisposable
     bool hotkeyOn;
     int mods, vk;
 
-    public event Action? Capture, FullScreen, OpenEditor, OpenPicture, PastePicture, Settings, OpenFolder, Quit, BalloonClicked, Update;
+    public event Action? Capture, FullScreen, OpenEditor, OpenPicture, PastePicture, Settings, OpenFolder, Quit, BalloonClicked, Update, Reopen;
+    readonly MenuItem reopenItem;
     readonly MenuItem updateItem;
     readonly Separator updateSeparator = new() { Visibility = Visibility.Collapsed };
 
@@ -43,6 +44,9 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(captureItem);
         menu.Items.Add(Item("Capture the whole screen", () => FullScreen?.Invoke()));
         menu.Items.Add(Item("Open the editor", () => OpenEditor?.Invoke()));
+        reopenItem = Item("Reopen closed capture", () => Reopen?.Invoke());
+        reopenItem.Visibility = Visibility.Collapsed;
+        menu.Items.Add(reopenItem);
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Open a picture…", () => OpenPicture?.Invoke()));
         menu.Items.Add(Item("Frame the clipboard picture", () => PastePicture?.Invoke()));
@@ -96,6 +100,8 @@ public sealed class TrayIcon : IDisposable
         d.dwInfoFlags = 0;
         Shell_NotifyIcon(NIM_MODIFY, ref d);
     }
+
+    public void SetReopenVisible(bool visible) => reopenItem.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Shows "Update to Scr x.y.z" in the menu, or hides it (null).</summary>
     public void SetUpdateItem(string? text)

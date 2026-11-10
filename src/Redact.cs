@@ -14,6 +14,9 @@ public readonly record struct Redaction(Int32Rect Area, RedactKind Kind);
 
 public enum MarkKind { Box, Marker, Spotlight }
 
+/// <summary>All the edits on one capture at one moment: what's hidden, what's marked, and the crop.</summary>
+public sealed record EditState(Redaction[] Redactions, Mark[] Marks, Int32Rect? Crop);
+
 /// <summary>A highlight box, a marker stroke or a spotlight, in the capture's own pixels.</summary>
 public readonly record struct Mark(MarkKind Kind, Int32Rect Area, Color Color);
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -39,7 +40,7 @@ public partial class EditorWindow : GlassWindow
 
     public int TabCount => tabs.Count;
 
-    public EditorWindow(BitmapSource capture, double scale, string? name = null)
+    public EditorWindow(BitmapSource capture, double scale, string? name = null, ClosedCapture? restore = null)
     {
         InitializeComponent();
 
@@ -48,10 +49,10 @@ public partial class EditorWindow : GlassWindow
         Width = Math.Clamp(pw + 316, 900, Math.Max(900, wa.Width * 0.9));
         Height = Math.Clamp(ph + 44, 600, Math.Max(600, wa.Height * 0.9));
 
-        AlignTitleBar(TitleBar, 14);
+        AlignTitleBar(TitleBar, 0);
         BuildSwatches();
         Wire();
-        AddCapture(capture, name);
+        AddCapture(capture, name, restore);
 
         PreviewKeyDown += OnKeys;
         AllowDrop = true;
@@ -61,20 +62,27 @@ public partial class EditorWindow : GlassWindow
         {
             App.Instance.Settings.Style = style.Clone();
             App.Instance.Settings.Save();
+            // Everything still open can be reopened later, most recent tab last.
+            foreach (var t in tabs.Where(t => t != cur).Append(cur)) Remember(t);
         };
     }
 
     // ---------- Tabs ----------
 
     /// <summary>Adds a capture as a new tab and shows it. New tabs start with the frame you used last.</summary>
-    public void AddCapture(BitmapSource capture, string? name = null)
+    public void AddCapture(BitmapSource capture, string? name = null, ClosedCapture? restore = null)
     {
         var tab = new CaptureTab
         {
             Src = new FrameSource(capture),
-            Style = (tabs.Count > 0 ? cur.Style : App.Instance.Settings.Style).Clone(),
-            Name = name,
+            Style = (restore?.Style ?? (tabs.Count > 0 ? cur.Style : App.Instance.Settings.Style)).Clone(),
+            Name = restore?.Name ?? name,
         };
+        if (restore != null)
+        {
+            tab.Taken = restore.Taken;
+            tab.Src.RestoreEdits(restore.Edits);
+        }
         tab.Button = MakeTabButton(tab, capture);
         tabs.Add(tab);
         TabStrip.Children.Add(tab.Button);
@@ -147,11 +155,92 @@ public partial class EditorWindow : GlassWindow
             return;
         }
         App.Instance.Settings.Style = tab.Style.Clone();
+        Remember(tab);
         tabs.RemoveAt(i);
         TabStrip.Children.Remove(tab.Button);
         if (cur == tab) Select(tabs[Math.Min(i, tabs.Count - 1)]);
         App.Instance.ScheduleTrim();
     }
+
+    void OnClosedChanged() => Dispatcher.BeginInvoke(new Action(UpdateHistoryButton));
+
+    void UpdateHistoryButton()
+    {
+        int n = ClosedCaptures.Count;
+        HistoryBtn.IsEnabled = n > 0;
+        HistoryBtn.ToolTip = n > 0 ? $"Reopen a closed capture ({n})" : "Closed captures show up here, so you can reopen them";
+    }
+
+    /// <summary>The history menu: the last closed captures, newest first, with a picture, size and time.</summary>
+    void ShowHistory()
+    {
+        var menu = BuildHistoryMenu();
+        if (menu.Items.Count > 0) menu.IsOpen = true;
+    }
+
+#if DEBUG
+    internal ContextMenu HistoryMenuForTest() => BuildHistoryMenu();
+#endif
+
+    ContextMenu BuildHistoryMenu()
+    {
+        var items = ClosedCaptures.Newest();
+        var menu = new ContextMenu
+        {
+            PlacementTarget = HistoryBtn,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Top,
+            VerticalOffset = -4,
+        };
+        foreach (var c in items)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            if (c.Thumbnail is BitmapSource t)
+            {
+                double k = Math.Min(36.0 / t.PixelWidth, 22.0 / t.PixelHeight);
+                var img = new Image
+                {
+                    Source = t,
+                    Width = Math.Max(8, Math.Round(t.PixelWidth * k)),
+                    Height = Math.Max(8, Math.Round(t.PixelHeight * k)),
+                    Stretch = Stretch.Fill,
+                    Margin = new Thickness(0, 0, 10, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                img.Clip = new RectangleGeometry(new Rect(0, 0, img.Width, img.Height), 3, 3);
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                var slot = new Grid { Width = 36, Margin = new Thickness(0, 0, 10, 0) };
+                img.Margin = new Thickness(0);
+                img.HorizontalAlignment = HorizontalAlignment.Center;
+                slot.Children.Add(img);
+                row.Children.Add(slot);
+            }
+            row.Children.Add(new TextBlock { Text = c.Name is { Length: > 0 } n ? n : "Screenshot", VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(new TextBlock
+            {
+                Text = $"  {c.Width} × {c.Height}",
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)FindResource("B.Muted"),
+            });
+            var item = new MenuItem { Header = row, InputGestureText = When(c.Taken) };
+            var which = c;
+            item.Click += (_, _) => App.Instance.ReopenClosed(which);
+            menu.Items.Add(item);
+        }
+        return menu;
+    }
+
+    static string When(DateTime t)
+    {
+        var today = DateTime.Today;
+        if (t.Date == today) return t.ToString("HH:mm");
+        if (t.Date == today.AddDays(-1)) return "Yesterday " + t.ToString("HH:mm");
+        return t.ToString("d MMM HH:mm", System.Globalization.CultureInfo.GetCultureInfo("en-GB"));
+    }
+
+    /// <summary>Keeps a closing capture so it can be reopened (tray menu, the + menu or Ctrl+Shift+T).</summary>
+    static void Remember(CaptureTab tab) =>
+        ClosedCaptures.Add(tab.Src.Capture, tab.Style, tab.Src.Edits, tab.Name, tab.Taken);
 
     void StepTab(int delta)
     {
@@ -253,6 +342,7 @@ public partial class EditorWindow : GlassWindow
         HighlightMarker.Checked += (_, _) => { if (!loading) style.HighlightKind = MarkKind.Marker; };
         CropResetBtn.Click += (_, _) => { src.SetCrop(null); UpdateEditUi(); RequestRender(); };
         UndoBtn.Click += (_, _) => UndoEdit();
+        RedoBtn.Click += (_, _) => RedoEdit();
         BuildColorDots();
         Preview.MouseLeftButtonDown += OnToolDown;
         Preview.MouseMove += OnToolMove;
@@ -261,6 +351,10 @@ public partial class EditorWindow : GlassWindow
         PickTool(Tool.None);
         PlainBtn.Click += (_, _) => TogglePlain();
         SaveBtn.Click += (_, _) => Save();
+        HistoryBtn.Click += (_, _) => ShowHistory();
+        UpdateHistoryButton();
+        ClosedCaptures.Changed += OnClosedChanged;
+        Closed += (_, _) => ClosedCaptures.Changed -= OnClosedChanged;
         CopyBtn.Click += (_, _) => CopyAndMaybeClose();
     }
 
@@ -444,10 +538,12 @@ public partial class EditorWindow : GlassWindow
             PickTool(e.Key switch { Key.R => Tool.Redact, Key.C => Tool.Crop, Key.H => Tool.Highlight, _ => Tool.Spotlight });
             e.Handled = true;
         }
+        else if (ctrl && e.Key == Key.T && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) { App.Instance.ReopenClosed(); e.Handled = true; }
         else if (ctrl && e.Key == Key.Tab) { StepTab(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? -1 : 1); e.Handled = true; }
         else if (ctrl && e.Key >= Key.D1 && e.Key <= Key.D9 && e.Key - Key.D1 < tabs.Count) { Select(tabs[e.Key - Key.D1]); e.Handled = true; }
         else if (ctrl && e.Key == Key.C && !inText) { CopyAndMaybeClose(); e.Handled = true; }
         else if (ctrl && e.Key == Key.S) { Save(); e.Handled = true; }
+        else if (ctrl && !inText && (e.Key == Key.Y || (e.Key == Key.Z && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)))) { RedoEdit(); e.Handled = true; }
         else if (ctrl && e.Key == Key.Z && !inText) { UndoEdit(); e.Handled = true; }
         else if (ctrl && e.Key == Key.V && !inText) { AddPictures(Import.FromClipboard(), "There's no picture on the clipboard."); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OpenPictures(); e.Handled = true; }
@@ -482,6 +578,11 @@ public partial class EditorWindow : GlassWindow
         menu.Items.Add(Item("New capture", Hotkey.Format(s.HotkeyMods, s.HotkeyVk), () => App.Instance.StartCapture()));
         menu.Items.Add(Item("From the clipboard", "Ctrl+V", () => AddPictures(Import.FromClipboard(), "There's no picture on the clipboard.")));
         menu.Items.Add(Item("Open a picture…", "Ctrl+O", OpenPictures));
+        if (ClosedCaptures.Count > 0)
+        {
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Item("Reopen closed capture", "Ctrl+Shift+T", () => App.Instance.ReopenClosed()));
+        }
         menu.IsOpen = true;
     }
 
@@ -520,6 +621,9 @@ public partial class EditorWindow : GlassWindow
     }
 
 #if DEBUG
+    internal FrameSource CurrentSourceForTest => src;
+    internal FrameStyle CurrentStyleForTest => style;
+
     /// <summary>For the preview pictures only.</summary>
     internal void EditForPreview(Action<FrameSource> edit, string? toolName = null)
     {
@@ -582,7 +686,15 @@ public partial class EditorWindow : GlassWindow
     {
         if (cur == null) return;
         UndoBtn.IsEnabled = src.CanUndo;
+        RedoBtn.IsEnabled = src.CanRedo;
         CropResetBtn.IsEnabled = src.Crop != null;
+    }
+
+    void RedoEdit()
+    {
+        if (!src.Redo()) return;
+        UpdateEditUi();
+        RequestRender();
     }
 
     void UndoEdit()

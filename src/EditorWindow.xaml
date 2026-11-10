@@ -11,38 +11,46 @@
     </Grid.RowDefinitions>
 
     <!-- Title bar, 44 px like Kalendar's; the caption buttons on the right are drawn by GlassWindow.
-         The tabs sit at its bottom edge and join the editor surface below. -->
-    <DockPanel x:Name="TitleBar" Margin="14,0,150,0" LastChildFill="True" Panel.ZIndex="1">
-      <Image Source="Assets/scr.ico" Width="18" Height="18" VerticalAlignment="Center"/>
-      <TextBlock Text="Scr" FontWeight="SemiBold" FontSize="12.5" Margin="8,0,10,1" VerticalAlignment="Center"/>
-      <Button DockPanel.Dock="Right" Style="{StaticResource IconBtn}" ToolTip="Settings" Click="OnSettings"
-              WindowChrome.IsHitTestVisibleInChrome="True" Height="32" Width="34" VerticalAlignment="Center">
-        <Viewbox Width="17" Height="17">
-          <Path Data="{StaticResource I.Settings}" Style="{StaticResource Icon}"/>
-        </Viewbox>
-      </Button>
-      <TextBlock DockPanel.Dock="Right" x:Name="SizeText" Foreground="{DynamicResource B.Muted}" FontSize="12"
-                 Margin="10,0,8,1" VerticalAlignment="Center"/>
-      <StackPanel Orientation="Horizontal" Margin="6,0,0,0">
-        <StackPanel x:Name="TabStrip" Orientation="Horizontal" VerticalAlignment="Bottom"/>
-        <!-- Lined up with the tab labels (tabs are 35 tall at the bottom of the 44 px bar) -->
-        <Button x:Name="NewCaptureBtn" Style="{StaticResource IconBtn}" Width="30" Height="30" Margin="4,0,0,2" VerticalAlignment="Bottom"
-                ToolTip="New capture, from the clipboard or a picture" WindowChrome.IsHitTestVisibleInChrome="True">
-          <Viewbox Width="15" Height="15">
-            <Path Data="{StaticResource I.Plus}" Style="{StaticResource Icon}"/>
+         Left, over the panel: the icon, the name and the picture's size. Right, over the editor surface: the tabs,
+         which sit at the bar's bottom edge and join the surface, starting where it starts. -->
+    <Grid x:Name="TitleBar" Panel.ZIndex="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="316"/>
+        <ColumnDefinition/>
+      </Grid.ColumnDefinitions>
+      <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+        <Image Source="Assets/scr.ico" Width="18" Height="18" VerticalAlignment="Center"/>
+        <TextBlock Text="Scr" FontWeight="SemiBold" FontSize="12.5" Margin="8,0,0,1" VerticalAlignment="Center"/>
+        <TextBlock x:Name="SizeText" Foreground="{DynamicResource B.Muted}" FontSize="12" Margin="12,0,0,1" VerticalAlignment="Center"/>
+      </StackPanel>
+      <DockPanel Grid.Column="1" LastChildFill="True" Margin="2,0,0,0">
+        <Button DockPanel.Dock="Right" Style="{StaticResource IconBtn}" ToolTip="Settings" Click="OnSettings"
+                WindowChrome.IsHitTestVisibleInChrome="True" Height="32" Width="34" VerticalAlignment="Center">
+          <Viewbox Width="17" Height="17">
+            <Path Data="{StaticResource I.Settings}" Style="{StaticResource Icon}"/>
           </Viewbox>
         </Button>
-      </StackPanel>
-    </DockPanel>
+        <StackPanel Orientation="Horizontal" Margin="8,0,0,0">
+          <StackPanel x:Name="TabStrip" Orientation="Horizontal" VerticalAlignment="Bottom"/>
+          <!-- Lined up with the tab labels (tabs are 35 tall at the bottom of the 44 px bar) -->
+          <Button x:Name="NewCaptureBtn" Style="{StaticResource IconBtn}" Width="30" Height="30" Margin="4,0,0,2" VerticalAlignment="Bottom"
+                  ToolTip="New capture, from the clipboard or a picture" WindowChrome.IsHitTestVisibleInChrome="True">
+            <Viewbox Width="15" Height="15">
+              <Path Data="{StaticResource I.Plus}" Style="{StaticResource Icon}"/>
+            </Viewbox>
+          </Button>
+        </StackPanel>
+      </DockPanel>
+    </Grid>
 
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition/>
         <ColumnDefinition Width="316"/>
+        <ColumnDefinition/>
       </Grid.ColumnDefinitions>
 
       <!-- The one main surface: the live preview -->
-      <Border x:Name="Sheet" local:SheetShadow.Enabled="True" Margin="10,0,2,10" CornerRadius="8" Background="{DynamicResource B.Sheet}"
+      <Border x:Name="Sheet" Grid.Column="1" local:SheetShadow.Enabled="True" Margin="2,0,10,10" CornerRadius="8" Background="{DynamicResource B.Sheet}"
               BorderBrush="{DynamicResource B.SheetEdge}" BorderThickness="1">
         <Grid>
           <Grid Margin="32,62,32,32" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{StaticResource Checker}">
@@ -104,6 +112,9 @@
               <Button x:Name="UndoBtn" Style="{StaticResource IconBtn}" Height="30" Width="32" ToolTip="Undo (Ctrl+Z)">
                 <Viewbox Width="17" Height="17"><Path Data="{StaticResource I.Undo}" Style="{StaticResource Icon}"/></Viewbox>
               </Button>
+              <Button x:Name="RedoBtn" Style="{StaticResource IconBtn}" Height="30" Width="32" ToolTip="Redo (Ctrl+Y)">
+                <Viewbox Width="17" Height="17"><Path Data="{StaticResource I.Redo}" Style="{StaticResource Icon}"/></Viewbox>
+              </Button>
             </StackPanel>
           </Border>
           <Border x:Name="Toast" Opacity="0" IsHitTestVisible="False" VerticalAlignment="Bottom" HorizontalAlignment="Center"
@@ -113,15 +124,15 @@
         </Grid>
       </Border>
 
-      <!-- Controls -->
-      <Grid Grid.Column="1">
+      <!-- Controls: the panel on the left, like Kalendar's and Notat's sidebar -->
+      <Grid Grid.Column="0">
         <Grid.RowDefinitions>
           <RowDefinition/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,0,10,0" Focusable="False">
-          <StackPanel Margin="0,0,6,8">
-            <TextBlock Style="{StaticResource SectionLabel}" Text="FRAME" Margin="0,4,0,10"/>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,0,8,0" Focusable="False">
+          <StackPanel Margin="0,0,6,20">
+            <TextBlock Style="{StaticResource SectionLabel}" Text="FRAME" Margin="0,8,0,14"/>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
@@ -133,7 +144,7 @@
                 <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
 
-              <StackPanel Margin="0,0,0,12">
+              <StackPanel Margin="0,0,0,18">
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
                              Text="{Binding Value, ElementName=PadSlider, StringFormat={}{0:0}}"/>
@@ -141,7 +152,7 @@
                 </DockPanel>
                 <Slider x:Name="PadSlider" Style="{StaticResource FrameSlider}" Minimum="0" Maximum="200" Margin="0,4,0,0"/>
               </StackPanel>
-              <StackPanel Grid.Column="2" Margin="0,0,0,12">
+              <StackPanel Grid.Column="2" Margin="0,0,0,18">
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
                              Text="{Binding Value, ElementName=OuterSlider, StringFormat={}{0:0}}"/>
@@ -150,7 +161,7 @@
                 <Slider x:Name="OuterSlider" Style="{StaticResource FrameSlider}" Minimum="0" Maximum="60" Margin="0,4,0,0"/>
               </StackPanel>
 
-              <StackPanel Grid.Row="1" Margin="0,0,0,12">
+              <StackPanel Grid.Row="1" Margin="0,0,0,18">
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
                              Text="{Binding Value, ElementName=InsetSlider, StringFormat={}{0:0}}"/>
@@ -158,7 +169,7 @@
                 </DockPanel>
                 <Slider x:Name="InsetSlider" Style="{StaticResource FrameSlider}" Minimum="0" Maximum="100" Margin="0,4,0,0"/>
               </StackPanel>
-              <StackPanel Grid.Row="1" Grid.Column="2" x:Name="InnerBox" Margin="0,0,0,12">
+              <StackPanel Grid.Row="1" Grid.Column="2" x:Name="InnerBox" Margin="0,0,0,18">
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
                              Text="{Binding Value, ElementName=InnerSlider, StringFormat={}{0:0}}"/>
@@ -168,7 +179,7 @@
               </StackPanel>
             </Grid>
 
-            <DockPanel x:Name="InsetLookPanel" Margin="0,0,0,8">
+            <DockPanel x:Name="InsetLookPanel" Margin="0,2,0,18">
               <TextBlock Text="Inset" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="{DynamicResource B.Muted}"/>
               <Border Style="{StaticResource SegTrack}">
                 <UniformGrid Rows="1">
@@ -182,7 +193,7 @@
               </Border>
             </DockPanel>
 
-            <StackPanel x:Name="FrostBox" Margin="0,0,0,12">
+            <StackPanel x:Name="FrostBox" Margin="0,0,0,18">
               <DockPanel>
                 <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
                            Text="{Binding Value, ElementName=FrostSlider, StringFormat={}{0:0}}"/>
@@ -191,14 +202,15 @@
               <Slider x:Name="FrostSlider" Style="{StaticResource FrameSlider}" Minimum="0" Maximum="100" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <TextBlock Style="{StaticResource SectionLabel}" Text="SHADOW" Margin="0,4,0,10"/>
+            <Border Height="1" Background="{DynamicResource B.Hairline}" Margin="0,8,0,0"/>
+            <TextBlock Style="{StaticResource SectionLabel}" Text="SHADOW" Margin="0,18,0,14"/>
             <Grid x:Name="ShadowBox">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition Width="18"/>
                 <ColumnDefinition/>
               </Grid.ColumnDefinitions>
-              <StackPanel Margin="0,0,0,12">
+              <StackPanel Margin="0,0,0,18">
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
                              Text="{Binding Value, ElementName=ShadowSlider, StringFormat={}{0:0}}"/>
@@ -206,7 +218,7 @@
                 </DockPanel>
                 <Slider x:Name="ShadowSlider" Style="{StaticResource FrameSlider}" Minimum="0" Maximum="100" Margin="0,4,0,0"/>
               </StackPanel>
-              <StackPanel Grid.Column="2" Margin="0,0,0,12">
+              <StackPanel Grid.Column="2" Margin="0,0,0,18">
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource B.Muted}" FontSize="12.5"
                              Text="{Binding Value, ElementName=ShadowSizeSlider, StringFormat={}{0:0}}"/>
@@ -216,7 +228,8 @@
               </StackPanel>
             </Grid>
 
-            <TextBlock Style="{StaticResource SectionLabel}" Text="BACKDROP" Margin="0,4,0,10"/>
+            <Border Height="1" Background="{DynamicResource B.Hairline}" Margin="0,8,0,0"/>
+            <TextBlock Style="{StaticResource SectionLabel}" Text="BACKDROP" Margin="0,18,0,14"/>
             <Border Style="{StaticResource SegTrack}">
               <UniformGrid Rows="1">
                 <RadioButton x:Name="KindSolid" Content="Solid" Style="{StaticResource Seg}"/>
@@ -225,9 +238,9 @@
               </UniformGrid>
             </Border>
 
-            <StackPanel x:Name="GradientPanel" Margin="0,12,0,0">
+            <StackPanel x:Name="GradientPanel" Margin="0,16,0,0">
               <UniformGrid x:Name="GradientGrid" Columns="6" Margin="0,0,-6,0"/>
-              <DockPanel Margin="0,4,0,0">
+              <DockPanel Margin="0,10,0,0">
                 <Button DockPanel.Dock="Right" x:Name="ShuffleBtn" Style="{StaticResource IconBtn}" ToolTip="Shuffle" Margin="4,0,0,0">
                   <Viewbox Width="18" Height="18"><Path Data="{StaticResource I.Shuffle}" Style="{StaticResource Icon}"/></Viewbox>
                 </Button>
@@ -244,7 +257,7 @@
               </DockPanel>
             </StackPanel>
 
-            <StackPanel x:Name="SolidPanel" Margin="0,12,0,0">
+            <StackPanel x:Name="SolidPanel" Margin="0,16,0,0">
               <UniformGrid x:Name="SolidGrid" Columns="6" Margin="0,0,-6,0"/>
               <DockPanel Margin="0,4,0,0">
                 <TextBlock Text="Colour" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"/>
@@ -253,7 +266,7 @@
               </DockPanel>
             </StackPanel>
 
-            <StackPanel x:Name="PicturePanel" Margin="0,12,0,0">
+            <StackPanel x:Name="PicturePanel" Margin="0,16,0,0">
               <Border Style="{StaticResource SegTrack}">
                 <UniformGrid Rows="1">
                   <RadioButton x:Name="PicCapture" Content="Screenshot, blurred" Style="{StaticResource Seg}"/>
@@ -269,7 +282,8 @@
               <TextBlock x:Name="PicName" Style="{StaticResource Note}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
             </StackPanel>
 
-            <TextBlock Style="{StaticResource SectionLabel}" Text="SIZE"/>
+            <Border Height="1" Background="{DynamicResource B.Hairline}" Margin="0,22,0,0"/>
+            <TextBlock Style="{StaticResource SectionLabel}" Text="SIZE" Margin="0,18,0,14"/>
             <Border Style="{StaticResource SegTrack}">
               <UniformGrid Rows="1">
                 <RadioButton x:Name="RatioAuto" Content="Fit" Style="{StaticResource Seg}"/>
@@ -281,13 +295,17 @@
           </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource B.Hairline}" Padding="14,12,16,12">
+        <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource B.Hairline}" Padding="16,12,14,12">
           <DockPanel LastChildFill="False">
-            <Button x:Name="PlainBtn" Content="Plain" Style="{StaticResource GhostBtn}" Padding="12,0"
+            <Button x:Name="PlainBtn" Content="Plain" Style="{StaticResource Btn}" Padding="12,0" MinWidth="64"
                     ToolTip="Just the screenshot, with no frame"/>
-            <Button DockPanel.Dock="Right" x:Name="CopyBtn" Content="Copy" Style="{StaticResource PrimaryBtn}" MinWidth="92"
-                    Margin="8,0,0,0" ToolTip="Copy the framed picture to the clipboard (Ctrl+C or Enter)"/>
-            <Button DockPanel.Dock="Right" x:Name="SaveBtn" Content="Save…" Style="{StaticResource Btn}" ToolTip="Save as a PNG picture (Ctrl+S)"/>
+            <Button DockPanel.Dock="Right" x:Name="CopyBtn" Content="Copy" Style="{StaticResource PrimaryBtn}" MinWidth="84"
+                    Margin="6,0,0,0" ToolTip="Copy the framed picture to the clipboard (Ctrl+C or Enter)"/>
+            <Button DockPanel.Dock="Right" x:Name="SaveBtn" Content="Save…" Style="{StaticResource Btn}" Padding="12,0" ToolTip="Save as a PNG picture (Ctrl+S)"/>
+            <Button DockPanel.Dock="Right" x:Name="HistoryBtn" Style="{StaticResource Btn}" Width="36" Padding="0" Margin="6,0,6,0"
+                    ToolTip="Reopen a closed capture">
+              <Viewbox Width="18" Height="18"><Path Data="{StaticResource I.History}" Style="{StaticResource Icon}"/></Viewbox>
+            </Button>
           </DockPanel>
         </Border>
       </Grid>

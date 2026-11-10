@@ -52,13 +52,28 @@ public sealed class FrameSource
     List<Redaction> redactions = new();
     List<Mark> marks = new();
     Int32Rect? crop;
-    readonly Stack<(Redaction[] R, Mark[] M, Int32Rect? C)> history = new();
+    readonly Stack<EditState> history = new(), future = new(); // undo and redo
     BitmapSource? redacted, cropped;
 
     public IReadOnlyList<Redaction> Redactions => redactions;
     public IReadOnlyList<Mark> Marks => marks;
     public Int32Rect? Crop => crop;
     public bool CanUndo => history.Count > 0;
+    public bool CanRedo => future.Count > 0;
+
+    /// <summary>All edits as they are now (kept when a capture is closed, so it can be reopened as it was).</summary>
+    public EditState Edits => new(redactions.ToArray(), marks.ToArray(), crop);
+
+    /// <summary>Puts edits back, for a reopened capture. Starts a fresh undo history.</summary>
+    public void RestoreEdits(EditState e)
+    {
+        redactions = new List<Redaction>(e.Redactions);
+        marks = new List<Mark>(e.Marks);
+        crop = e.Crop;
+        history.Clear();
+        future.Clear();
+        Changed();
+    }
 
     /// <summary>The capture as it's framed, copied and saved: hidden parts blurred or pixelated, and cropped.</summary>
     public BitmapSource Shown => Image(cropped: true);
@@ -74,7 +89,20 @@ public sealed class FrameSource
     /// <summary>Where the top-left of the shown image is in the original capture.</summary>
     public Point Offset(bool cropped) => cropped && crop is Int32Rect c ? new Point(c.X, c.Y) : new Point(0, 0);
 
-    void Remember() => history.Push((redactions.ToArray(), marks.ToArray(), crop));
+    /// <summary>Before every edit: remember how it was, and forget anything undone (a new edit ends the redo steps).</summary>
+    void Remember()
+    {
+        history.Push(Edits);
+        future.Clear();
+    }
+
+    void Apply(EditState e)
+    {
+        redactions = new List<Redaction>(e.Redactions);
+        marks = new List<Mark>(e.Marks);
+        crop = e.Crop;
+        Changed();
+    }
 
     public void AddRedaction(Redaction r) { Remember(); redactions.Add(r); Changed(); }
     public void AddMark(Mark m) { Remember(); marks.Add(m); Changed(); }
@@ -92,11 +120,16 @@ public sealed class FrameSource
     public bool Undo()
     {
         if (history.Count == 0) return false;
-        var (r, m, c) = history.Pop();
-        redactions = new List<Redaction>(r);
-        marks = new List<Mark>(m);
-        crop = c;
-        Changed();
+        future.Push(Edits);
+        Apply(history.Pop());
+        return true;
+    }
+
+    public bool Redo()
+    {
+        if (future.Count == 0) return false;
+        history.Push(Edits);
+        Apply(future.Pop());
         return true;
     }
 

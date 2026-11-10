@@ -92,6 +92,66 @@ static class DevPreview
         File.WriteAllLines(Path.Combine(outDir, "shadow.txt"), lines);
     }
 
+    /// <summary>Edits, undo and redo, closing, and reopening a capture as it was, without showing anything.</summary>
+    static void ReopenTest(string outDir, BitmapSource sample)
+    {
+        Directory.CreateDirectory(outDir);
+        ThemeColors.Apply(Application.Current.Resources, "Lavender", false, glass: true);
+        var log = new System.Collections.Generic.List<string>();
+        void Check(string what, bool ok) => log.Add((ok ? "OK    " : "FAIL  ") + what);
+
+        var ed = new EditorWindow(sample, 1);
+        var f = ed.CurrentSourceForTest;
+        var red = Color.FromRgb(0xE5, 0x48, 0x4D);
+        f.AddMark(new Mark(MarkKind.Box, new Int32Rect(10, 10, 100, 40), red));
+        f.AddMark(new Mark(MarkKind.Box, new Int32Rect(200, 10, 100, 40), red));
+        f.Undo(); f.Undo();
+        Check("two undos leave no marks", f.Marks.Count == 0);
+        f.Redo();
+        Check("redo brings one mark back", f.Marks.Count == 1 && f.CanRedo);
+        f.AddRedaction(new Redaction(new Int32Rect(13, 478, 328, 50), RedactKind.Pixelate));
+        Check("a new edit ends the redo steps", !f.CanRedo);
+        f.SetCrop(new Int32Rect(0, 0, 1200, 700));
+        ed.CurrentStyleForTest.Padding = 123;
+        var before = f.Edits;
+
+        ed.Close();
+        Check("closing remembers the capture", ClosedCaptures.Count == 1);
+        Wait(1500); // background compression
+
+        var c = ClosedCaptures.Pop();
+        Check("it can be taken back", c != null && ClosedCaptures.Count == 0);
+        var pic = ClosedCaptures.PictureOf(c!);
+        Check("picture comes back the same size", pic.PixelWidth == sample.PixelWidth && pic.PixelHeight == sample.PixelHeight);
+        var again = new EditorWindow(pic, 1, null, c);
+        var g = again.CurrentSourceForTest;
+        Check("marks come back", g.Marks.Count == before.Marks.Length);
+        Check("redactions come back", g.Redactions.Count == before.Redactions.Length);
+        Check("crop comes back", Nullable.Equals(g.Crop, before.Crop));
+        Check("frame comes back", again.CurrentStyleForTest.Padding == 123);
+        FrameRenderer.SavePng(FrameRenderer.RenderBitmap(g, again.CurrentStyleForTest), Path.Combine(outDir, "reopened.png"));
+
+        // Three more closed captures: the list is newest first, and any one can be picked.
+        again.Close();
+        var parts = new[] { new Int32Rect(0, 0, 800, 500), new Int32Rect(400, 200, 900, 600), new Int32Rect(0, 300, 1600, 500) };
+        string[] names = { "first", "second", "third" };
+        for (int i = 0; i < 3; i++)
+        {
+            var e2 = new EditorWindow(ScreenCapture.Copy(sample, parts[i]), 1, names[i]);
+            e2.Close();
+        }
+        var newest = ClosedCaptures.Newest();
+        Check("list is newest first", newest.Count == 4 && newest[0].Name == "third" && newest[1].Name == "second");
+        var middle = newest[1];
+        Check("a particular one can be taken", ClosedCaptures.Take(middle) && ClosedCaptures.Count == 3 && !ClosedCaptures.Newest().Contains(middle));
+        Check("thumbnails are made", newest.TrueForAll(x => x.Thumbnail != null));
+
+        var host = new EditorWindow(sample, 1);
+        var menu = host.HistoryMenuForTest();
+        Snapshot(menu, 420, 160, false, Path.Combine(outDir, "history-menu.png"));
+        File.WriteAllLines(Path.Combine(outDir, "reopen.txt"), log);
+    }
+
     /// <summary>Captures a Scr window that sits far off-screen (so nothing shows), the way a clicked window is captured.</summary>
     static void WindowTest(string outDir)
     {
@@ -152,6 +212,7 @@ static class DevPreview
         if (args.Length >= 3 && args[0] == "--diag") { Diagnose(args[1], Load(args[2])); return; }
         if (args.Length >= 2 && args[0] == "--shadow-test") { ShadowTest(args[1]); return; }
         if (args.Length >= 2 && args[0] == "--window-test") { WindowTest(args[1]); return; }
+        if (args.Length >= 3 && args[0] == "--reopen-test") { ReopenTest(args[1], Load(args[2])); return; }
         string outDir = args.Length > 0 ? args[0] : ".";
         Directory.CreateDirectory(outDir);
         var sample = Load(args.Length > 1 ? args[1] : null);
@@ -178,6 +239,11 @@ static class DevPreview
                 f.AddMark(new Mark(MarkKind.Box, new Int32Rect(708, 323, 178, 36), Color.FromRgb(0xE5, 0x48, 0x4D)));
             }, "Highlight");
             Snapshot((FrameworkElement)ed.Content, 1180, 760, dark, Path.Combine(outDir, $"editor-{file}.png"));
+            if (file == "light")
+            {
+                ed.Height = 1180;
+                Snapshot((FrameworkElement)ed.Content, 1180, 1180, dark, Path.Combine(outDir, "editor-tall.png"));
+            }
 
             var st = new SettingsWindow(welcome: false) { Height = 1060 };
             Snapshot((FrameworkElement)st.Content, st.Width, 1060, dark, Path.Combine(outDir, $"settings-{file}.png"));

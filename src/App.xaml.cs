@@ -116,6 +116,8 @@ public partial class App : Application
         Tray.Capture += StartCapture;
         Tray.FullScreen += () => { RefreshTheme(); CaptureSession.FullScreenNow(); };
         Tray.OpenEditor += ShowEditor;
+        Tray.Reopen += ReopenClosed;
+        ClosedCaptures.Changed += () => Dispatcher.BeginInvoke(new Action(() => Tray?.SetReopenVisible(ClosedCaptures.Count > 0)));
         Tray.BalloonClicked += () => { if (balloonIsUpdate) InstallUpdate(); else ShowEditor(); };
         Tray.Update += InstallUpdate;
         Tray.OpenPicture += () => OpenPictures(AskForPictures(null), "Scr can't open that picture.");
@@ -359,10 +361,28 @@ public partial class App : Application
         editor.Activate();
     }
 
-    void CreateEditor(BitmapSource capture, double scale, string? name = null)
+    /// <summary>Brings back the most recently closed capture, with its frame and edits, in the editor.</summary>
+    public void ReopenClosed() => ReopenClosed(null);
+
+    /// <summary>Brings back a particular closed capture (from the history list), or the most recent one.</summary>
+    public void ReopenClosed(ClosedCapture? which)
+    {
+        var c = which != null ? (ClosedCaptures.Take(which) ? which : null) : ClosedCaptures.Pop();
+        if (c == null) return;
+        var picture = ClosedCaptures.PictureOf(c);
+        if (editor == null) CreateEditor(picture, 1, c.Name, c);
+        else
+        {
+            editor.AddCapture(picture, c.Name, c);
+            if (editor.WindowState == WindowState.Minimized) editor.WindowState = WindowState.Normal;
+            editor.Activate();
+        }
+    }
+
+    void CreateEditor(BitmapSource capture, double scale, string? name = null, ClosedCapture? restore = null)
     {
         RefreshTheme();
-        var ed = new EditorWindow(capture, scale, name);
+        var ed = new EditorWindow(capture, scale, name, restore);
         foreach (var w in waiting) ed.AddCapture(w.Capture);
         waiting.Clear();
         ed.Closed += (_, _) => { if (editor == ed) editor = null; ScheduleTrim(); };

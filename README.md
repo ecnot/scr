@@ -44,6 +44,8 @@ Each tab keeps its own frame and edits. <kbd>Ctrl</kbd> + <kbd>Tab</kbd> switche
 - **Size:** Fit, 16:9, 4:3 or 1:1, for posts and slides.
 - **Plain** takes the frame off, and clicking it again puts the frame back. Scr remembers your last frame for next time.
 - **Copy** (<kbd>Enter</kbd> or <kbd>Ctrl</kbd> + <kbd>C</kbd>) and **Save…** (<kbd>Ctrl</kbd> + <kbd>S</kbd>, PNG).
+- **Closed it too soon?** The history button next to Save lists your last 10 closed captures with the time they were taken.
+  Pick one to get it back with its frame and edits. <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd> and the tray menu bring back the most recent one.
 
 ### Tools
 
@@ -54,7 +56,7 @@ The small bar on the picture has four tools. Nothing happens until you click one
 - **Highlight** (<kbd>H</kbd>): a **box** outline or a see-through **marker**, in red, yellow, green or blue.
 - **Spotlight** (<kbd>S</kbd>): dims everything except the parts you drag.
 
-One **Undo** (<kbd>Ctrl</kbd> + <kbd>Z</kbd>) steps back through all of them.
+**Undo** (<kbd>Ctrl</kbd> + <kbd>Z</kbd>) and **Redo** (<kbd>Ctrl</kbd> + <kbd>Y</kbd>) step through all of them.
 
 <p align="center">
   <img src="docs/screenshots/framed-spotlight-crop.png" width="49%" alt="A cropped capture with a spotlight and a yellow marker">
