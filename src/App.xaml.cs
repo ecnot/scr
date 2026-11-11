@@ -405,6 +405,16 @@ public partial class App : Application
             waiting.RemoveAt(0);
             CreateEditor(first.Capture, first.Scale);
         }
+        else
+        {
+            // Nothing to show: open it empty, with ways to start.
+            RefreshTheme();
+            var ed = new EditorWindow();
+            ed.Closed += (_, _) => { if (editor == ed) editor = null; ScheduleTrim(); };
+            editor = ed;
+            ed.Show();
+            ed.Activate();
+        }
     }
 
     public void ShowSettings(bool welcome)

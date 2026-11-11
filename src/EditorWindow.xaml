@@ -30,7 +30,7 @@
             <Path Data="{StaticResource I.Settings}" Style="{StaticResource Icon}"/>
           </Viewbox>
         </Button>
-        <StackPanel Orientation="Horizontal" Margin="8,0,0,0">
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
           <StackPanel x:Name="TabStrip" Orientation="Horizontal" VerticalAlignment="Bottom"/>
           <!-- Lined up with the tab labels (tabs are 35 tall at the bottom of the 44 px bar) -->
           <Button x:Name="NewCaptureBtn" Style="{StaticResource IconBtn}" Width="30" Height="30" Margin="4,0,0,2" VerticalAlignment="Bottom"
@@ -66,8 +66,21 @@
               </Rectangle>
             </Canvas>
           </Grid>
+          <!-- Shown when the editor is open with nothing in it (Open the editor from the tray) -->
+          <StackPanel x:Name="EmptyState" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="Nothing to frame yet" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"
+                       FontFamily="Segoe UI Variable Display, Segoe UI"/>
+            <TextBlock Style="{StaticResource Note}" Margin="0,6,0,18" HorizontalAlignment="Center" TextAlignment="Center"
+                       Text="Take a capture, paste a picture or open one."/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <Button x:Name="EmptyCaptureBtn" Content="New capture" Style="{StaticResource PrimaryBtn}" Margin="0,0,8,0"/>
+              <Button x:Name="EmptyPasteBtn" Content="Paste" Style="{StaticResource Btn}" Margin="0,0,8,0"/>
+              <Button x:Name="EmptyOpenBtn" Content="Open a picture…" Style="{StaticResource Btn}"/>
+            </StackPanel>
+          </StackPanel>
+
           <!-- Tools: nothing is on until you click one; only the active tool's options show -->
-          <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,12,0,0" Padding="4" CornerRadius="8"
+          <Border x:Name="ToolBar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,12,0,0" Padding="4" CornerRadius="8"
                   Background="{DynamicResource B.Menu}" BorderBrush="{DynamicResource B.MenuEdge}" BorderThickness="1">
             <Border.Effect>
               <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.12"/>
@@ -130,7 +143,7 @@
           <RowDefinition/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,0,8,0" Focusable="False">
+        <ScrollViewer x:Name="PanelScroll" VerticalScrollBarVisibility="Auto" Padding="16,0,8,0" Focusable="False">
           <StackPanel Margin="0,0,6,20">
             <TextBlock Style="{StaticResource SectionLabel}" Text="FRAME" Margin="0,8,0,14"/>
             <Grid>

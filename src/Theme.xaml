@@ -371,7 +371,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="ScrollBar">
           <Grid Background="Transparent">
-            <Track x:Name="PART_Track" IsDirectionReversed="True">
+            <Track x:Name="PART_Track" IsDirectionReversed="True" Opacity="0">
               <Track.Thumb>
                 <Thumb>
                   <Thumb.Template>
@@ -383,6 +383,25 @@
               </Track.Thumb>
             </Track>
           </Grid>
+          <ControlTemplate.Triggers>
+            <!-- Only while the cursor is over the panel it scrolls (or dragging the bar) -->
+            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" Value="True">
+              <DataTrigger.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="PART_Track" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15"/>
+                  </Storyboard>
+                </BeginStoryboard>
+              </DataTrigger.EnterActions>
+              <DataTrigger.ExitActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="PART_Track" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/>
+                  </Storyboard>
+                </BeginStoryboard>
+              </DataTrigger.ExitActions>
+            </DataTrigger>
+          </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
     </Setter>

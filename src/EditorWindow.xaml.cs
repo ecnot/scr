@@ -40,6 +40,38 @@ public partial class EditorWindow : GlassWindow
 
     public int TabCount => tabs.Count;
 
+    /// <summary>An editor with nothing in it yet (Open the editor from the tray): a short note and three ways to start.</summary>
+    public EditorWindow()
+    {
+        InitializeComponent();
+        AlignTitleBar(TitleBar, 0);
+        BuildSwatches();
+        Wire();
+        SetEmpty(true);
+        PreviewKeyDown += OnKeys;
+        AllowDrop = true;
+        DragOver += (_, e) => { e.Effects = Import.HasPicture(e.Data) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
+        Drop += (_, e) => AddPictures(Import.Read(e.Data), "Those files aren't pictures Scr can open.");
+        Closed += (_, _) =>
+        {
+            if (cur == null) return;
+            App.Instance.Settings.Style = style.Clone();
+            App.Instance.Settings.Save();
+            foreach (var t in tabs.Where(t => t != cur).Append(cur)) Remember(t);
+        };
+    }
+
+    /// <summary>With no capture open, the controls rest and the note shows.</summary>
+    void SetEmpty(bool empty)
+    {
+        EmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        ToolBar.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
+        PanelScroll.IsEnabled = !empty;
+        PanelScroll.Opacity = empty ? 0.45 : 1;
+        PlainBtn.IsEnabled = SaveBtn.IsEnabled = CopyBtn.IsEnabled = !empty;
+        if (empty) { Preview.Source = null; SizeText.Text = ""; }
+    }
+
     public EditorWindow(BitmapSource capture, double scale, string? name = null, ClosedCapture? restore = null)
     {
         InitializeComponent();
@@ -84,6 +116,7 @@ public partial class EditorWindow : GlassWindow
             tab.Src.RestoreEdits(restore.Edits);
         }
         tab.Button = MakeTabButton(tab, capture);
+        if (tabs.Count == 0) SetEmpty(false);
         tabs.Add(tab);
         TabStrip.Children.Add(tab.Button);
         Select(tab);
@@ -329,6 +362,9 @@ public partial class EditorWindow : GlassWindow
         RatioSquare.Checked += (_, _) => SetRatio(AspectRatio.Square);
 
         NewCaptureBtn.Click += (_, _) => ShowNewMenu();
+        EmptyCaptureBtn.Click += (_, _) => App.Instance.StartCapture();
+        EmptyPasteBtn.Click += (_, _) => AddPictures(Import.FromClipboard(), "There's no picture on the clipboard.");
+        EmptyOpenBtn.Click += (_, _) => OpenPictures();
         InsetAuto.Checked += (_, _) => SetInsetLook(InsetLook.Auto);
         InsetGlass.Checked += (_, _) => SetInsetLook(InsetLook.Glass);
         InsetEdge.Checked += (_, _) => SetInsetLook(InsetLook.Edge);
@@ -531,6 +567,15 @@ public partial class EditorWindow : GlassWindow
     {
         bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         bool inText = e.OriginalSource is TextBox;
+        if (cur == null)
+        {
+            // Nothing open yet: only the ways to get something in, and Esc to close.
+            if (e.Key == Key.Escape) { Close(); e.Handled = true; }
+            else if (ctrl && e.Key == Key.V) { AddPictures(Import.FromClipboard(), "There's no picture on the clipboard."); e.Handled = true; }
+            else if (ctrl && e.Key == Key.O) { OpenPictures(); e.Handled = true; }
+            else if (ctrl && e.Key == Key.T && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) { App.Instance.ReopenClosed(); e.Handled = true; }
+            return;
+        }
         if (e.Key == Key.Escape && tool != Tool.None) { PickTool(Tool.None); e.Handled = true; }
         else if (e.Key == Key.Escape || (ctrl && e.Key == Key.W)) { CloseTab(cur); e.Handled = true; }
         else if (Keyboard.Modifiers == ModifierKeys.None && !inText && e.Key is Key.R or Key.C or Key.H or Key.S)

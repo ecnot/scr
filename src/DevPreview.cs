@@ -241,6 +241,8 @@ static class DevPreview
             Snapshot((FrameworkElement)ed.Content, 1180, 760, dark, Path.Combine(outDir, $"editor-{file}.png"));
             if (file == "light")
             {
+                var empty = new EditorWindow { Width = 1180, Height = 760 };
+                Snapshot((FrameworkElement)empty.Content, 1180, 760, dark, Path.Combine(outDir, "editor-empty.png"));
                 ed.Height = 1180;
                 Snapshot((FrameworkElement)ed.Content, 1180, 1180, dark, Path.Combine(outDir, "editor-tall.png"));
             }
