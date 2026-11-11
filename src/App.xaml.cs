@@ -135,10 +135,13 @@ public partial class App : Application
             Settings.Save();
             ShowSettings(true);
         }
-        else if (!trayOnly)
+        else if (!trayOnly && !justUpdated)
         {
-            StartCapture();
+            // Opened from the Start menu or the folder while Scr wasn't running: just start, and say so.
+            // (Opening it again while it runs still takes a capture.)
+            ShowBalloon("Scr is ready", $"It waits in the tray. Press {Hotkey.Format(Settings.HotkeyMods, Settings.HotkeyVk)} to capture.");
         }
+        StartMenu.Sync(Settings.StartMenuShortcut);
         if (justUpdated) ShowBalloon("Scr is updated", $"You now have Scr {Updater.CurrentText}. Your settings are just as they were.");
         if (updateNow) _ = CheckForUpdates(userAsked: true, installIfFound: true);
         else StartUpdateChecks();

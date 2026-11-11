@@ -128,6 +128,8 @@ so Snipping Tool may open instead.
    anywhere you like (for example `C:\Apps\Scr`), and run **Scr.exe**.
 
 The first time, Scr opens Settings with a short welcome. After that it waits in the tray, by the clock.
+It also adds itself to the Start menu, so if you close it by mistake, press <kbd>Win</kbd>, type "Scr" and press Enter
+(you can pin it there too). Settings has a switch to leave it out.
 Turn on Start with Windows to have it there every day.
 
 - `Scr.exe --tray` starts it quietly in the tray (this is what Start with Windows uses).

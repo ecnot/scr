@@ -50,6 +50,7 @@ public sealed class AppSettings
     public bool TakeOverWinShiftS { get; set; } = true;
     public bool QuietFullScreen { get; set; } = true;
     public bool CheckForUpdates { get; set; } = true;
+    public bool StartMenuShortcut { get; set; } = true;
     public DateTime? LastUpdateCheck { get; set; }
     public string Theme { get; set; } = "Lavender";
     public ColorMode ColorMode { get; set; } = ColorMode.System;

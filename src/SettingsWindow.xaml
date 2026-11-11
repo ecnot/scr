@@ -112,6 +112,12 @@
               <TextBlock Style="{StaticResource Note}" Text="Scr waits quietly in the tray, ready for your shortcut."/>
             </StackPanel>
           </CheckBox>
+          <CheckBox x:Name="StartMenuShortcut" Style="{StaticResource Switch}" Margin="0,14,0,0">
+            <StackPanel>
+              <TextBlock Text="Show in the Start menu"/>
+              <TextBlock Style="{StaticResource Note}" Text="Find Scr by pressing Win and typing its name, or pin it. Handy if you close it by mistake."/>
+            </StackPanel>
+          </CheckBox>
         </StackPanel>
       </ScrollViewer>
     </Border>

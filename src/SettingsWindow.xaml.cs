@@ -46,6 +46,7 @@ public partial class SettingsWindow : GlassWindow
         (S.ColorMode switch { ColorMode.Light => ModeLight, ColorMode.Dark => ModeDark, _ => ModeSystem }).IsChecked = true;
         FolderText.Text = S.SaveFolderOrDefault;
         try { StartWithWindows.IsChecked = AppSettings.StartWithWindows; } catch { }
+        StartMenuShortcut.IsChecked = S.StartMenuShortcut;
         var v = Assembly.GetExecutingAssembly().GetName().Version;
         VersionText.Text = $"Scr {v?.Major}.{v?.Minor}.{v?.Build}";
         loading = false;
@@ -73,6 +74,8 @@ public partial class SettingsWindow : GlassWindow
         ModeDark.Checked += (_, _) => SetMode(ColorMode.Dark);
         StartWithWindows.Checked += (_, _) => SetStartup(true);
         StartWithWindows.Unchecked += (_, _) => SetStartup(false);
+        StartMenuShortcut.Checked += (_, _) => Set(() => { S.StartMenuShortcut = true; StartMenu.Sync(true); });
+        StartMenuShortcut.Unchecked += (_, _) => Set(() => { S.StartMenuShortcut = false; StartMenu.Sync(false); });
         FolderBtn.Click += (_, _) => ChooseFolder();
         DoneBtn.Click += (_, _) => Close();
         ShortcutBtn.Click += (_, _) => StartRecording();
