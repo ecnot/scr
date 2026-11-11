@@ -610,9 +610,9 @@
               <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.GhostHover}"/>
             </Trigger>
             <!-- The chosen tab is part of the editor's surface: same colour, same bright edge, no line between them -->
+            <!-- The chosen tab is drawn together with the editor surface as one shape (SheetShape), so there's no seam -->
             <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.Sheet}"/>
-              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.SheetEdge}"/>
+              <Setter TargetName="bd" Property="Background" Value="Transparent"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

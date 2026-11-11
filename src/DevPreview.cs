@@ -209,6 +209,7 @@ static class DevPreview
 
     public static void Run(string[] args)
     {
+        EditorWindow.IsLoadedForPreview = true;
         if (args.Length >= 3 && args[0] == "--diag") { Diagnose(args[1], Load(args[2])); return; }
         if (args.Length >= 2 && args[0] == "--shadow-test") { ShadowTest(args[1]); return; }
         if (args.Length >= 2 && args[0] == "--window-test") { WindowTest(args[1]); return; }
@@ -241,6 +242,9 @@ static class DevPreview
             Snapshot((FrameworkElement)ed.Content, 1180, 760, dark, Path.Combine(outDir, $"editor-{file}.png"));
             if (file == "light")
             {
+                ed.SelectFirstForTest();
+                Snapshot((FrameworkElement)ed.Content, 1180, 760, dark, Path.Combine(outDir, "editor-first-tab.png"));
+                File.WriteAllText(Path.Combine(outDir, "edges.txt"), ed.EdgesForTest());
                 var empty = new EditorWindow { Width = 1180, Height = 760 };
                 Snapshot((FrameworkElement)empty.Content, 1180, 760, dark, Path.Combine(outDir, "editor-empty.png"));
                 ed.Height = 1180;

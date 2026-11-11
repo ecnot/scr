@@ -50,8 +50,8 @@
       </Grid.ColumnDefinitions>
 
       <!-- The one main surface: the live preview -->
-      <Border x:Name="Sheet" Grid.Column="1" local:SheetShadow.Enabled="True" Margin="2,0,10,10" CornerRadius="8" Background="{DynamicResource B.Sheet}"
-              BorderBrush="{DynamicResource B.SheetEdge}" BorderThickness="1">
+      <!-- The surface's fill and bright edge are drawn by SheetShape (EditorWindow), together with the chosen tab, as one shape -->
+      <Border x:Name="Sheet" Grid.Column="1" local:SheetShadow.Enabled="True" Margin="2,0,10,10" CornerRadius="8" Background="Transparent">
         <Grid>
           <Grid Margin="32,62,32,32" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{StaticResource Checker}">
             <Image x:Name="Preview" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>

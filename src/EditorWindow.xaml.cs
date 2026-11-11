@@ -44,6 +44,7 @@ public partial class EditorWindow : GlassWindow
     public EditorWindow()
     {
         InitializeComponent();
+        SetUpSheetShape();
         AlignTitleBar(TitleBar, 0);
         BuildSwatches();
         Wire();
@@ -75,6 +76,7 @@ public partial class EditorWindow : GlassWindow
     public EditorWindow(BitmapSource capture, double scale, string? name = null, ClosedCapture? restore = null)
     {
         InitializeComponent();
+        SetUpSheetShape();
 
         var wa = SystemParameters.WorkArea;
         double pw = capture.PixelWidth / scale * 1.2 + 90, ph = capture.PixelHeight / scale * 1.2 + 110;
@@ -98,6 +100,54 @@ public partial class EditorWindow : GlassWindow
             foreach (var t in tabs.Where(t => t != cur).Append(cur)) Remember(t);
         };
     }
+
+    // ---------- The surface and the chosen tab, drawn as one shape ----------
+
+    System.Windows.Shapes.Path sheetShape = null!;
+    string? sheetShapeKey;
+
+    /// <summary>
+    /// The editor surface and the chosen tab share one fill and one bright outline, like browser tabs,
+    /// so there's no seam where they meet. It sits just behind the surface and reaches up into the title bar.
+    /// </summary>
+    void SetUpSheetShape()
+    {
+        sheetShape = new System.Windows.Shapes.Path { StrokeThickness = 1, IsHitTestVisible = false };
+        sheetShape.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "B.Sheet");
+        sheetShape.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "B.SheetEdge");
+        Grid.SetColumn(sheetShape, Grid.GetColumn(Sheet));
+        var parent = (Panel)Sheet.Parent;
+        parent.Children.Insert(parent.Children.IndexOf(Sheet), sheetShape);
+        LayoutUpdated += (_, _) => UpdateSheetShape();
+    }
+
+    void UpdateSheetShape()
+    {
+        if (sheetShape == null || Sheet.ActualWidth <= 0 || PresentationSource.FromVisual(sheetShape) == null && !IsLoadedForPreview) return;
+        var s = new Rect(Sheet.TranslatePoint(new Point(0, 0), sheetShape), new Size(Sheet.ActualWidth, Sheet.ActualHeight));
+        Rect? t = null;
+        if (cur != null && cur.Button.ActualWidth > 0)
+        {
+            var p = cur.Button.TranslatePoint(new Point(0, 0), sheetShape);
+            // Reach 2 px down into the surface so the two overlap and join.
+            t = new Rect(p.X, p.Y, cur.Button.ActualWidth, cur.Button.ActualHeight + 2);
+        }
+        string key = $"{s}|{t}|{Sheet.CornerRadius}";
+        if (key == sheetShapeKey) return;
+        sheetShapeKey = key;
+        // Half a pixel in, so the 1 px outline lands on whole pixels.
+        var sr = s; sr.Inflate(-0.5, -0.5);
+        Geometry g = SheetShadow.RoundedRect(sr, Sheet.CornerRadius);
+        if (t is Rect tr)
+        {
+            tr.Inflate(-0.5, 0); tr.Y += 0.5;
+            g = new CombinedGeometry(GeometryCombineMode.Union, g, SheetShadow.RoundedRect(tr, new CornerRadius(8, 8, 0, 0)));
+        }
+        sheetShape.Data = g;
+    }
+
+    /// <summary>The preview pictures lay windows out without showing them.</summary>
+    internal static bool IsLoadedForPreview;
 
     // ---------- Tabs ----------
 
@@ -170,6 +220,8 @@ public partial class EditorWindow : GlassWindow
     {
         cur = tab;
         tab.Button.IsChecked = true;
+        // The first tab sits right at the surface's left edge, so with it chosen that corner is square and they join as one shape.
+        Sheet.CornerRadius = tabs.IndexOf(tab) == 0 ? new CornerRadius(0, 8, 8, 8) : new CornerRadius(8);
         tab.Button.BringIntoView();
         autoSwatch.Background = AutoSwatchBrush(src.AutoColors);
         UpdateEditUi();
@@ -191,6 +243,7 @@ public partial class EditorWindow : GlassWindow
         Remember(tab);
         tabs.RemoveAt(i);
         TabStrip.Children.Remove(tab.Button);
+        if (cur != tab && tabs.Count > 0) Sheet.CornerRadius = tabs.IndexOf(cur) == 0 ? new CornerRadius(0, 8, 8, 8) : new CornerRadius(8);
         if (cur == tab) Select(tabs[Math.Min(i, tabs.Count - 1)]);
         App.Instance.ScheduleTrim();
     }
@@ -667,6 +720,16 @@ public partial class EditorWindow : GlassWindow
 
 #if DEBUG
     internal FrameSource CurrentSourceForTest => src;
+    internal void SelectFirstForTest() => Select(tabs[0]);
+
+    /// <summary>Where the first tab and the surface start, in the window's units (for the alignment check).</summary>
+    internal string EdgesForTest()
+    {
+        var root = (UIElement)Content;
+        double tab = tabs[0].Button.TranslatePoint(new Point(0, 0), root).X;
+        double sheet = Sheet.TranslatePoint(new Point(0, 0), root).X;
+        return $"first tab left {tab:0.##}, surface left {sheet:0.##}, tab width {tabs[0].Button.ActualWidth:0.##}";
+    }
     internal FrameStyle CurrentStyleForTest => style;
 
     /// <summary>For the preview pictures only.</summary>

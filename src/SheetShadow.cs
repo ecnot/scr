@@ -24,20 +24,50 @@ public static class SheetShadow
         if (sheet.IsInitialized) Attach(sheet);
     }
 
+    /// <summary>A rectangle with its own radius at each corner.</summary>
+    public static Geometry RoundedRect(Rect r, CornerRadius c)
+    {
+        var g = new StreamGeometry();
+        using (var ctx = g.Open())
+        {
+            void Arc(Point to, double rad)
+            {
+                if (rad > 0) ctx.ArcTo(to, new Size(rad, rad), 0, false, SweepDirection.Clockwise, true, false);
+                else ctx.LineTo(to, true, false);
+            }
+            ctx.BeginFigure(new Point(r.Left + c.TopLeft, r.Top), true, true);
+            ctx.LineTo(new Point(r.Right - c.TopRight, r.Top), true, false);
+            Arc(new Point(r.Right, r.Top + c.TopRight), c.TopRight);
+            ctx.LineTo(new Point(r.Right, r.Bottom - c.BottomRight), true, false);
+            Arc(new Point(r.Right - c.BottomRight, r.Bottom), c.BottomRight);
+            ctx.LineTo(new Point(r.Left + c.BottomLeft, r.Bottom), true, false);
+            Arc(new Point(r.Left, r.Bottom - c.BottomLeft), c.BottomLeft);
+            ctx.LineTo(new Point(r.Left, r.Top + c.TopLeft), true, false);
+            Arc(new Point(r.Left + c.TopLeft, r.Top), c.TopLeft);
+        }
+        g.Freeze();
+        return g;
+    }
+
     static void Attach(Border sheet)
     {
         if (sheet.Parent is not Grid parent || sheet.Tag is "shadowed") return;
         sheet.Tag = "shadowed";
 
         var color = Color.FromRgb(0x1E, 0x1E, 0x46);
-        Border Layer(double blur, double depth, double opacity) => new()
+        Border Layer(double blur, double depth, double opacity)
         {
-            CornerRadius = sheet.CornerRadius,
-            Background = Brushes.Black,
+            var layer = new Border
+            {
+                Background = Brushes.Black,
             Margin = sheet.Margin,
             IsHitTestVisible = false,
-            Effect = new DropShadowEffect { Color = color, BlurRadius = blur, ShadowDepth = depth, Direction = 270, Opacity = opacity },
-        };
+                Effect = new DropShadowEffect { Color = color, BlurRadius = blur, ShadowDepth = depth, Direction = 270, Opacity = opacity },
+            };
+            // Same corners as the surface, also when one of them changes (the first tab squares the top-left one).
+            layer.SetBinding(Border.CornerRadiusProperty, new System.Windows.Data.Binding(nameof(Border.CornerRadius)) { Source = sheet });
+            return layer;
+        }
         var host = new Grid { IsHitTestVisible = false };
         host.Children.Add(Layer(4, 1, 0.09));   // 0 1px 2px
         host.Children.Add(Layer(20, 3, 0.13));  // 0 3px 10px
@@ -55,11 +85,12 @@ public static class SheetShadow
             var m = sheet.Margin;
             var inside = new Rect(m.Left, m.Top, w - m.Left - m.Right, h - m.Top - m.Bottom);
             if (inside.Width <= 0 || inside.Height <= 0) return;
-            double r = sheet.CornerRadius.TopLeft;
             host.Clip = new CombinedGeometry(GeometryCombineMode.Exclude,
                 new RectangleGeometry(new Rect(-40, -40, w + 80, h + 80)),
-                new RectangleGeometry(inside, r, r));
+                RoundedRect(inside, sheet.CornerRadius));
         }
         host.SizeChanged += (_, _) => Clip();
+        System.ComponentModel.DependencyPropertyDescriptor.FromProperty(Border.CornerRadiusProperty, typeof(Border))
+            .AddValueChanged(sheet, (_, _) => Clip());
     }
 }
