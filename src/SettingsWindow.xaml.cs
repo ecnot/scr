@@ -32,6 +32,8 @@ public partial class SettingsWindow : GlassWindow
         ShowShortcut();
         WinShiftS.IsChecked = S.TakeOverWinShiftS;
         CopyNow.IsChecked = S.CopyOnCapture;
+        (S.AfterCapture == AfterCapture.Notification ? AfterNotify : AfterEditor).IsChecked = true;
+        ShowAfterNote();
         CloseAfter.IsChecked = S.CloseAfterCopy;
         QuietFullScreen.IsChecked = S.QuietFullScreen;
         CheckUpdates.IsChecked = S.CheckForUpdates;
@@ -53,6 +55,8 @@ public partial class SettingsWindow : GlassWindow
 
         WinShiftS.Checked += (_, _) => Set(() => { S.TakeOverWinShiftS = true; App.Instance.ApplyShortcuts(); });
         WinShiftS.Unchecked += (_, _) => Set(() => { S.TakeOverWinShiftS = false; App.Instance.ApplyShortcuts(); });
+        AfterEditor.Checked += (_, _) => Set(() => { S.AfterCapture = AfterCapture.Editor; ShowAfterNote(); });
+        AfterNotify.Checked += (_, _) => Set(() => { S.AfterCapture = AfterCapture.Notification; ShowAfterNote(); });
         CopyNow.Checked += (_, _) => Set(() => S.CopyOnCapture = true);
         CopyNow.Unchecked += (_, _) => Set(() => S.CopyOnCapture = false);
         CloseAfter.Checked += (_, _) => Set(() => S.CloseAfterCopy = true);
@@ -115,6 +119,10 @@ public partial class SettingsWindow : GlassWindow
         UpdateBtn.Style = (Style)FindResource(u != null ? "PrimaryBtn" : "Btn");
         UpdateBtn.IsEnabled = !app.UpdateBusy;
     }
+
+    void ShowAfterNote() => AfterNote.Text = S.AfterCapture == AfterCapture.Notification
+        ? "A notification shows up in the corner. Click it to frame the screenshot; otherwise it waits in the editor."
+        : "The editor opens right away, ready to frame the screenshot.";
 
     void SetMode(ColorMode mode) => Set(() => { S.ColorMode = mode; App.Instance.RefreshTheme(); });
 

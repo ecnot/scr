@@ -46,6 +46,13 @@
           </CheckBox>
 
           <TextBlock Style="{StaticResource SectionLabel}" Text="AFTER YOU CAPTURE" Margin="0,22,0,12"/>
+          <Border Style="{StaticResource SegTrack}">
+            <UniformGrid Rows="1">
+              <RadioButton x:Name="AfterEditor" Content="Open the editor" Style="{StaticResource Seg}"/>
+              <RadioButton x:Name="AfterNotify" Content="Show a notification" Style="{StaticResource Seg}"/>
+            </UniformGrid>
+          </Border>
+          <TextBlock x:Name="AfterNote" Style="{StaticResource Note}" Margin="0,8,0,16"/>
           <CheckBox x:Name="CopyNow" Style="{StaticResource Switch}">
             <StackPanel>
               <TextBlock Text="Copy the screenshot straight away"/>

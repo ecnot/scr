@@ -92,12 +92,25 @@ public sealed class TrayIcon : IDisposable
         Shell_NotifyIcon(message, ref d);
     }
 
-    public void ShowBalloon(string title, string text)
+    IntPtr balloonPicture;
+
+    /// <summary>
+    /// A Windows notification from the tray icon. With a picture, it's shown as the notification's image
+    /// (Windows only allows a small square one here).
+    /// </summary>
+    public void ShowBalloon(string title, string text, System.Windows.Media.Imaging.BitmapSource? picture = null)
     {
         var d = Data(NIF_INFO);
         d.szInfoTitle = title;
         d.szInfo = text;
         d.dwInfoFlags = 0;
+        if (picture != null && IconPicture.From(picture, 96) is IntPtr pic && pic != IntPtr.Zero)
+        {
+            if (balloonPicture != IntPtr.Zero) DestroyIcon(balloonPicture);
+            balloonPicture = pic;
+            d.hBalloonIcon = pic;
+            d.dwInfoFlags = 0x4 | 0x20; // NIIF_USER | NIIF_LARGE_ICON
+        }
         Shell_NotifyIcon(NIM_MODIFY, ref d);
     }
 
@@ -179,6 +192,7 @@ public sealed class TrayIcon : IDisposable
         Shell_NotifyIcon(NIM_DELETE, ref d);
         UnregisterHotKey(source.Handle, HotkeyId);
         if (icon != IntPtr.Zero) DestroyIcon(icon);
+        if (balloonPicture != IntPtr.Zero) DestroyIcon(balloonPicture);
         menuHost?.Close();
         source.Dispose();
     }

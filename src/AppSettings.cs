@@ -11,6 +11,7 @@ public enum GradientShape { Linear, Mesh, Radial }
 public enum AspectRatio { Auto, Wide, Classic, Square }
 public enum ColorMode { System, Light, Dark }
 public enum InsetLook { Auto, Glass, Edge }
+public enum AfterCapture { Editor, Notification }
 
 /// <summary>How a capture is framed. Sizes are in "units" that grow with the capture, so a style looks the same on small and big shots.</summary>
 public sealed class FrameStyle
@@ -56,6 +57,7 @@ public sealed class AppSettings
     public ColorMode ColorMode { get; set; } = ColorMode.System;
     public int GlassLevel { get; set; } = 3; // transparency, 1 (clearest) to 5 (solid); 3 is the original look
     public bool CopyOnCapture { get; set; } = true;
+    public AfterCapture AfterCapture { get; set; } = AfterCapture.Editor;
     public bool CloseAfterCopy { get; set; } = true;
     public string? SaveFolder { get; set; }
     public bool Welcomed { get; set; }

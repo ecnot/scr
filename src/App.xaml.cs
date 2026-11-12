@@ -160,11 +160,15 @@ public partial class App : Application
     /// <summary>A test copy (SCR_TEST=1) leaves your shortcuts alone and shows no notices.</summary>
     static bool TestMode => Environment.GetEnvironmentVariable("SCR_TEST") == "1";
 
-    public void ShowBalloon(string title, string text, bool isUpdate = false)
+    /// <summary>For the tests: which way the last capture went.</summary>
+    internal string? LastNotificationForTest;
+    internal int WaitingForTest => waiting.Count;
+
+    public void ShowBalloon(string title, string text, bool isUpdate = false, BitmapSource? picture = null)
     {
         balloonIsUpdate = isUpdate;
         if (TestMode) return;
-        Tray?.ShowBalloon(title, text);
+        Tray?.ShowBalloon(title, text, picture);
     }
 
     void SetUpdateState(string status)
@@ -293,13 +297,19 @@ public partial class App : Application
     /// </summary>
     public void OpenEditor(BitmapSource capture, double scale, bool quiet = false)
     {
-        if (quiet)
+        // "Show a notification" in Settings: like a full-screen game capture, but with its own message.
+        bool notify = !quiet && Settings.AfterCapture == AfterCapture.Notification;
+        if (quiet || notify)
         {
             bool copied = Settings.CopyOnCapture && TryCopy(capture);
             if (editor != null) editor.AddCapture(capture);
             else waiting.Add((capture, scale));
-            ShowBalloon("Screenshot taken",
-                (copied ? "It's on your clipboard. " : "") + "Your full-screen app kept running. Click here to frame it.");
+            if (notify)
+                ShowBalloon(copied ? "Screenshot copied" : "Screenshot taken", "Click here to frame it.", picture: capture);
+            else
+                ShowBalloon("Screenshot taken",
+                    (copied ? "It's on your clipboard. " : "") + "Your full-screen app kept running. Click here to frame it.", picture: capture);
+            LastNotificationForTest = notify ? "notification" : "quiet";
             return;
         }
 

@@ -101,6 +101,8 @@ pinned Scr icon works as a capture button.
 
 - **Shortcut:** <kbd>Print Screen</kbd> to start with. Click it and press the keys you'd like instead.
 - **Win + Shift + S opens Scr:** takes the Snipping Tool shortcut over from Windows (on to start with).
+- **After you capture:** open the editor right away, or **show a notification** instead. The screenshot is copied, and
+  clicking the notification opens it in the editor.
 - **Copy the screenshot straight away**, **Close the editor after Copy** and **Leave full-screen games alone.**
 - **Appearance:** the same eight themes as Kalendar (Blossom, Peach, Honey, Meadow, Glacier, Lavender, Dusk, Slate),
   Same as Windows, Light or Dark, and a five-step **Transparency** slider from Clear to Solid.

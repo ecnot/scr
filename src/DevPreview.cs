@@ -152,6 +152,24 @@ static class DevPreview
         File.WriteAllLines(Path.Combine(outDir, "reopen.txt"), log);
     }
 
+    /// <summary>"Show a notification": the capture waits for the editor instead of opening it, and its picture can be made.</summary>
+    static void NotifyTest(string outDir, BitmapSource sample)
+    {
+        Directory.CreateDirectory(outDir);
+        var log = new System.Collections.Generic.List<string>();
+        void Check(string what, bool ok) => log.Add((ok ? "OK    " : "FAIL  ") + what);
+        var app = App.Instance;
+        app.Settings.CopyOnCapture = false; // leave the real clipboard alone
+        app.Settings.AfterCapture = AfterCapture.Notification;
+        app.OpenEditor(sample, 1);
+        Check("a capture with 'Show a notification' goes to a notification", app.LastNotificationForTest == "notification");
+        Check("and waits for the editor instead of opening it", app.WaitingForTest == 1);
+        var icon = IconPicture.From(sample, 96);
+        Check("the notification's picture can be made", icon != IntPtr.Zero);
+        app.Settings.AfterCapture = AfterCapture.Editor;
+        File.WriteAllLines(Path.Combine(outDir, "notify.txt"), log);
+    }
+
     /// <summary>Captures a Scr window that sits far off-screen (so nothing shows), the way a clicked window is captured.</summary>
     static void WindowTest(string outDir)
     {
@@ -213,6 +231,7 @@ static class DevPreview
         if (args.Length >= 3 && args[0] == "--diag") { Diagnose(args[1], Load(args[2])); return; }
         if (args.Length >= 2 && args[0] == "--shadow-test") { ShadowTest(args[1]); return; }
         if (args.Length >= 2 && args[0] == "--window-test") { WindowTest(args[1]); return; }
+        if (args.Length >= 3 && args[0] == "--notify-test") { NotifyTest(args[1], Load(args[2])); return; }
         if (args.Length >= 3 && args[0] == "--reopen-test") { ReopenTest(args[1], Load(args[2])); return; }
         string outDir = args.Length > 0 ? args[0] : ".";
         Directory.CreateDirectory(outDir);
