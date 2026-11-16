@@ -311,6 +311,10 @@ static class DevPreview
             sp.SetCrop(new Int32Rect(0, 0, 1600, 700));
             FrameRenderer.SavePng(FrameRenderer.RenderBitmap(sp, new FrameStyle()), Path.Combine(outDir, "framed-spotlight-crop.png"));
         }
+        Snapshot(NotificationCard.ContentForPreview(sample), 340, 300, false, Path.Combine(outDir, "card-light.png"));
+        ThemeColors.Apply(Application.Current.Resources, "Lavender", true, glass: true);
+        Snapshot(NotificationCard.ContentForPreview(sample), 340, 300, true, Path.Combine(outDir, "card-dark.png"));
+        ThemeColors.Apply(Application.Current.Resources, "Lavender", false, glass: true);
         Example("auto", s => { s.GradientIndex = -1; s.Shape = GradientShape.Mesh; });
         Example("auto-linear", s => { s.GradientIndex = -1; s.Shape = GradientShape.Linear; s.Seed = 1; });
         Example("transparent", s => { s.Kind = BackdropKind.Solid; s.SolidColor = "#00FFFFFF"; s.Padding = 50; });

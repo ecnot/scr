@@ -114,7 +114,7 @@ public partial class App : Application
 
         Tray = new TrayIcon();
         Tray.Capture += StartCapture;
-        Tray.FullScreen += () => { RefreshTheme(); CaptureSession.FullScreenNow(); };
+        Tray.FullScreen += () => { RefreshTheme(); NotificationCard.HideNow(); CaptureSession.FullScreenNow(); };
         Tray.OpenEditor += ShowEditor;
         Tray.Reopen += ReopenClosed;
         ClosedCaptures.Changed += () => Dispatcher.BeginInvoke(new Action(() => Tray?.SetReopenVisible(ClosedCaptures.Count > 0)));
@@ -280,6 +280,7 @@ public partial class App : Application
     public void StartCapture()
     {
         if (CaptureSession.IsActive) return;
+        NotificationCard.HideNow(); // so the card isn't in the next picture
         RefreshTheme();
         // A full-screen game minimises if anything takes focus, so capture its screen quietly instead.
         if (Settings.QuietFullScreen && ScreenCapture.FullScreenAppMonitor() is ScreenCapture.Monitor m)
@@ -305,7 +306,10 @@ public partial class App : Application
             if (editor != null) editor.AddCapture(capture);
             else waiting.Add((capture, scale));
             if (notify)
-                ShowBalloon(copied ? "Screenshot copied" : "Screenshot taken", "Click here to frame it.", picture: capture);
+            {
+                // Scr's own card: Windows can hold its notifications back (Do not disturb, full-screen apps).
+                if (!TestMode) NotificationCard.Show(capture, copied ? "Screenshot copied" : "Screenshot taken", "Click to frame it", ShowEditor);
+            }
             else
                 ShowBalloon("Screenshot taken",
                     (copied ? "It's on your clipboard. " : "") + "Your full-screen app kept running. Click here to frame it.", picture: capture);
