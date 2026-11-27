@@ -283,7 +283,8 @@ public partial class App : Application
         NotificationCard.HideNow(); // so the card isn't in the next picture
         RefreshTheme();
         // A full-screen game minimises if anything takes focus, so capture its screen quietly instead.
-        if (Settings.QuietFullScreen && ScreenCapture.FullScreenAppMonitor() is ScreenCapture.Monitor m)
+        // Only real games: a full-screen video or presentation gets the normal capture screen, so you can pick an area.
+        if (Settings.QuietFullScreen && ScreenCapture.FullScreenGameRunning() && ScreenCapture.FullScreenAppMonitor() is ScreenCapture.Monitor m)
         {
             try { OpenEditor(ScreenCapture.Capture(m.Bounds), m.Scale, quiet: true); }
             catch (Exception ex) { ShowBalloon("Scr couldn't capture the screen", ex.Message); }

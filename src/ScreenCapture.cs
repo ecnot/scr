@@ -59,6 +59,18 @@ public static class ScreenCapture
     }
 
     /// <summary>
+    /// True while a game runs in true full screen (Windows calls it a full-screen Direct3D app). Those minimise when
+    /// anything else takes focus. A full-screen video, browser or presentation doesn't count.
+    /// </summary>
+    public static bool FullScreenGameRunning()
+    {
+        const int QUNS_RUNNING_D3D_FULL_SCREEN = 3;
+        return SHQueryUserNotificationState(out int state) == 0 && state == QUNS_RUNNING_D3D_FULL_SCREEN;
+    }
+
+    [DllImport("shell32.dll")] static extern int SHQueryUserNotificationState(out int state);
+
+    /// <summary>
     /// The monitor covered by the app in front, if that app is full screen (a game, a video, a presentation).
     /// Null for normal and maximised windows, the desktop and the taskbar.
     /// </summary>

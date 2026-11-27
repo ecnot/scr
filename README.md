@@ -84,9 +84,10 @@ When you press the shortcut, the screen freezes and dims. Then:
 
 It works across several monitors, each with its own scaling, and captures in real pixels.
 
-**Full-screen games and videos are left alone.** A full-screen game minimises if another window takes focus, so when
-something fills the screen, Scr quietly takes the whole screen instead. The game keeps running, the screenshot is on your
-clipboard, and a small notice lets you open it in the editor whenever you like.
+**Full-screen games are left alone.** A game in true full screen minimises if another window takes focus, so then Scr
+quietly takes the whole screen instead. The game keeps running, the screenshot is on your clipboard, and a small notice
+lets you open it in the editor whenever you like. Full-screen videos and other apps get the normal capture screen, so you
+can pick just the part you want.
 
 Click the tray icon to capture too. Right-click it to capture the whole screen, open the editor, open or paste a picture,
 open your screenshots folder, change Settings or quit. Starting Scr again while it's running also takes a capture, so a

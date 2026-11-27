@@ -69,7 +69,7 @@
           <CheckBox x:Name="QuietFullScreen" Style="{StaticResource Switch}" Margin="0,14,0,0">
             <StackPanel>
               <TextBlock Text="Leave full-screen games alone"/>
-              <TextBlock Style="{StaticResource Note}" Text="When a game or video fills the screen, Scr takes the whole screen without leaving it. The capture waits in the editor."/>
+              <TextBlock Style="{StaticResource Note}" Text="When a game runs in full screen, Scr takes the whole screen without leaving the game. The capture waits in the editor. Full-screen videos get the normal capture screen."/>
             </StackPanel>
           </CheckBox>
 
